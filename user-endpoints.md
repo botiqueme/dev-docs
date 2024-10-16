@@ -1,5 +1,7 @@
 # User Management 
-**Description**: This group of endpoints manages user accounts, including registration, login, profile updates, and account deletion. Authentication tokens are required for most operations except for user registration, login, email confirmation, and password-related actions. All responses follow a standard format for consistency.
+**Description**: This group of endpoints manages user accounts, including registration, login, ~~profile updates, and account deletion~~. Authentication tokens are required for most operations except for user registration, login, email confirmation, and password-related actions. All responses follow a standard format for consistency.
+
+**DNS**: The DNS that will handle all the users-related backend operation is at __https://user.alfredhospitalityai.com/api/v1/__
 
 ## Endpoint Response Standard
 All endpoints respond using the following standardized structure:
@@ -8,6 +10,7 @@ All endpoints respond using the following standardized structure:
 ```json
 {
     "status": "success",
+    "code": 200
     "data": { /* response object */ }
 }
 ```
@@ -20,30 +23,39 @@ All endpoints respond using the following standardized structure:
     "message": "Detailed error message"
 }
 ```
-
 ## Endpoints:
 
-### 1. POST /users/register
-- **Description**: Registers a new host account with the platform.
+### 1. GET /hello
+- **Description**: Test the server availability.
 - **Authentication**: No authentication required.
-- **Parameters**:
-  - `name` (String, Required): Host’s first name.
-  - `surname` (String, Required): Host’s surname.
-  - `email` (String, Required): Host’s email (e.g., `example@example.com`).
-  - `password` (String, Required): Host’s password (minimum 8 characters, mix of letters and numbers).
-  - `billing_address` (String, Required): Host’s billing address.
-  - `vat_number` (String, Optional): VAT number for billing.
 - **Example Request**:
 ```bash
-curl -X POST https://api.example.com/v1/users/register \
+curl https://user.alfredhospitalityai.com/api/v1/hello
+```
+- **Responses**:
+  - **200 Success**
+    ```json
+    {
+        "status": "success",
+        "code": 200,
+        "data": {
+            "message": "Server is Online!"
+        }
+    }
+
+### 1. POST /register
+- **Description**: Registers a new account with the platform.
+- **Authentication**: No authentication required.
+- **Parameters**:
+  - `email` (String, Required): Host’s email (e.g., `example@example.com`).
+  - `password` (String, Required): Host’s password (minimum 8 characters, mix of letters and numbers).
+- **Example Request**:
+```bash
+curl -X POST https://user.alfredhospitalityai.com/api/v1/register \
 -H "Content-Type: application/json" \
 -d '{
-      "name": "John",
-      "surname": "Doe",
       "email": "john.doe@example.com",
       "password": "SecurePass123",
-      "billing_address": "123 Billing St.",
-      "vat_number": "VAT12345"
     }'
 ```
 - **Responses**:
@@ -53,19 +65,18 @@ curl -X POST https://api.example.com/v1/users/register \
         "status": "success",
         "data": {
             "message": "User registered successfully.",
-            "user_id": "uuid-of-the-new-user"  // Note: This is an example representation.
         }
     }
     ```
-  - **400 Bad Request**
+    - **500 or 501 Generic Error**
     ```json
     {
         "status": "error",
-        "code": 400,
-        "message": "Validation error - invalid email format or missing required fields."
+        "code": 500 or 501,
+        "message": "Generic error in user creation, contact the admin"
     }
     ```
-  - **409 Conflict**
+    - **409 Conflict**
     ```json
     {
         "status": "error",
@@ -73,43 +84,16 @@ curl -X POST https://api.example.com/v1/users/register \
         "message": "Email already registered."
     }
     ```
-
-### 2. POST /users/login
-- **Description**: Authenticates a user and returns a session token.
-- **Authentication**: No authentication required.
-- **Parameters**:
-  - `email` (String, Required): Host’s email (e.g., `example@example.com`).
-  - `password` (String, Required): Host’s password.
-- **Example Request**:
-```bash
-curl -X POST https://api.example.com/v1/users/login \
--H "Content-Type: application/json" \
--d '{
-      "email": "john.doe@example.com",
-      "password": "SecurePass123"
-    }'
-```
-- **Responses**:
-  - **200 OK**
-    ```json
-    {
-        "status": "success",
-        "data": {
-            "token": "session-token",
-            "user_id": "uuid-of-the-user"  // Note: This is an example representation.
-        }
-    }
-    ```
-  - **401 Unauthorized**
+  - **400 Bad Request**
     ```json
     {
         "status": "error",
-        "code": 401,
-        "message": "Incorrect email or password."
+        "code": 400,
+        "message": "Error in mail sending process"
     }
     ```
-
-### 3. POST /users/confirm-email
+    
+### 3. GET /verify/<token>
 - **Description**: Confirms the host’s email using a token sent during registration.
 - **Authentication**: No authentication required.
 - **Parameters**:
@@ -129,11 +113,66 @@ curl -X POST https://api.example.com/v1/users/login \
     {
         "status": "error",
         "code": 400,
-        "message": "Invalid or expired token."
+        "message": "Expired token."
+    }
+    ```
+  - **401 Bad Request**
+    ```json
+    {
+        "status": "error",
+        "code": 401,
+        "message": "Invalid token."
     }
     ```
 
-### 4. POST /users/forgot-password
+### 2. POST /login
+- **Description**: Authenticates a user and returns a session token.
+- **Authentication**: No authentication required.
+- **Parameters**:
+  - `email` (String, Required): Host’s email (e.g., `example@example.com`).
+  - `password` (String, Required): Host’s password.
+- **Example Request**:
+```bash
+curl -X POST https://user.alfredhospitalityai.com/api/v1/login \
+-H "Content-Type: application/json" \
+-d '{
+      "email": "john.doe@example.com",
+      "password": "SecurePass123"
+    }'
+```
+- **Responses**:
+  - **200 OK**
+    ```json
+    {
+        "status": "success",
+        "code": 200,
+        "data": {
+            "message": "successfull login"
+            "jwt_token": jwt_token,
+            "email": email
+        }
+    }
+    ```
+  - **401 Unauthorized**
+    ```json
+    {
+        "status": "error",
+        "code": 401,
+        "message": "Incorrect email or password."
+    }
+    ```
+  - **402 mail not verified**
+    ```json
+    {
+        "status": "error",
+        "code": 402,
+        "message": "Email not verified, yet"
+    }
+    ```
+
+
+
+### 4. POST /users/forgot-password [NOT AVAILABLE]
 - **Description**: Initiates the password recovery process for a user.
 - **Authentication**: No authentication required.
 - **Parameters**:
@@ -157,7 +196,7 @@ curl -X POST https://api.example.com/v1/users/login \
     }
     ```
 
-### 5. PUT /users/reset-password
+### 5. PUT /users/reset-password [NOT AVAILABLE]
 - **Description**: Resets the user’s password using a token.
 - **Authentication**: No authentication required.
 - **Parameters**:
@@ -182,7 +221,7 @@ curl -X POST https://api.example.com/v1/users/login \
     }
     ```
 
-### 6. GET /users/profile
+### 6. GET /users/profile [NOT AVAILABLE]
 - **Description**: Retrieves the profile details of the logged-in host.
 - **Authentication**: Requires a valid session token.
 - **Parameters**:
@@ -211,7 +250,7 @@ curl -X POST https://api.example.com/v1/users/login \
     }
     ```
 
-### 7. PUT /users/profile
+### 7. PUT /users/profile [NOT AVAILABLE]
 - **Description**: Updates the user’s profile information, such as name or billing address.
 - **Authentication**: Requires a valid session token.
 - **Parameters**:
@@ -239,7 +278,7 @@ curl -X POST https://api.example.com/v1/users/login \
     }
     ```
 
-### 8. DELETE /users/{`userId`}
+### 8. DELETE /users/{`userId`} [NOT AVAILABLE]
 - **Description**: Deletes a user account from the system.
 - **Authentication**: Requires a valid session token.
 - **Path Parameters**:
@@ -255,7 +294,7 @@ curl -X POST https://api.example.com/v1/users/login \
     }
     ```
 
-### 9. GET /users/validate-token
+### 9. GET /users/validate-token [NOT AVAILABLE]
 - **Description**: Validates the user’s session token for authentication purposes.
 - **Authentication**: Requires a valid session token.
 - **Parameters**:
@@ -279,7 +318,7 @@ curl -X POST https://api.example.com/v1/users/login \
     }
     ```
 
-### 10. POST /users/upload-avatar
+### 10. POST /users/upload-avatar [NOT AVAILABLE]
 - **Description**: Uploads or updates the user’s avatar image.
 - **Authentication**: Requires a valid session token.
 - **Parameters**:
