@@ -1,4 +1,6 @@
-# Endpoint: Login Normale
+Endpoint: /login (Aggiornato con User ID)
+
+# Endpoint: `/login`
 
 ## 1. Dettagli
 - **Endpoint**: `/login`
@@ -9,7 +11,7 @@
 ---
 
 ## 2. Parametri Accettati
-Il body della richiesta deve essere in formato JSON:
+Il corpo della richiesta deve essere in formato JSON:
 - `email` (stringa, obbligatorio): L'email registrata dell'utente.
 - `password` (stringa, obbligatorio): La password dell'utente.
 
@@ -68,7 +70,7 @@ def login():
    - Firmare il token con la chiave segreta del backend.
 
 5. **Risposta al Frontend**:
-   - Restituire il token JWT e un messaggio di successo.
+   - Restituire il token JWT, l'`user_id` e un messaggio di successo.
 
 ---
 
@@ -100,7 +102,7 @@ def login():
   "data": {
     "message": "Login successful",
     "jwt_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-    "email": "user@example.com"
+    "user_id": "123e4567-e89b-12d3-a456-426614174000"
   }
 }
 ```
@@ -141,7 +143,8 @@ def login():
 
 ---
 
-## 7. Codice Esempio
+## 7. Codice Aggiornato
+
 ```
 @v1.route('/login', methods=['POST'])
 @limiter.limit("5 per minute")
@@ -171,7 +174,7 @@ def login():
     # Generazione token JWT
     jwt_token = jwt.encode(
         {
-            "user_id": user.id,
+            "user_id": user.user_id,
             "email": user.email,
             "exp": datetime.utcnow() + timedelta(hours=1)
         },
@@ -183,7 +186,7 @@ def login():
     return jsonify_return_success("success", 200, {
         "message": "Login successful",
         "jwt_token": jwt_token,
-        "email": user.email
+        "user_id": user.user_id
     })
 ```
 
@@ -198,5 +201,3 @@ def login():
    - Eccesso di tentativi di login.
 3. **Configurare HTTPS** e testare l'accesso solo tramite connessioni sicure.
 4. **Integrare il frontend** per inviare credenziali all'endpoint `/login`.
-
-Se hai bisogno di dettagli aggiuntivi o vuoi espandere questa implementazione, fammi sapere! 😊
