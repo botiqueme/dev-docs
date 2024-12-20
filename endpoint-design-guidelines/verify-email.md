@@ -1,5 +1,4 @@
-# Endpoint: `/verify_email` (Versione Migliorata)
-
+# Endpoint: `/verify_email` 
 ## Miglioramenti Implementati
 
 1. **Rate Limiting Migliorato**
