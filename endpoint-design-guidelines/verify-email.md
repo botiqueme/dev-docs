@@ -120,23 +120,7 @@ def verify_email():
 
 ---
 
-## Nota Finale per lo Sviluppatore
-
-### **Cosa È Stato Implementato**
-1. **Rate Limiting Migliorato**:
-   - Diversi limiti per token validi e non validi.
-   - Configurazione per loggare tentativi sospetti.
-
-2. **Blacklist per Token**:
-   - Utilizzata per invalidare manualmente token compromessi o associati a utenti eliminati.
-
-3. **Monitoraggio Base**:
-   - Logging dettagliato per verifiche completate e tentativi falliti.
-
-4. **Gestione dei Token Scaduti**:
-   - Collegato con `/resend_verification` per rigenerare token scaduti.
-
-### **Prossimi Passi**
+## Prossimi Passi
 1. **Integrazione Completa del Monitoraggio**:
    - Configurare strumenti come Prometheus o Grafana per raccogliere e visualizzare metriche dettagliate.
 
