@@ -1,16 +1,12 @@
-Ecco la versione aggiornata dell’endpoint /update_user con l’inclusione del User ID e le modifiche necessarie:
+# Endpoint: /update_user
 
-# Endpoint: `/update_user`
-
-## 1. Dettagli
+## Dettagli
 - **URL**: `/update_user`
 - **Metodo**: `PUT` o `PATCH` (preferibile per aggiornamenti parziali).
 - **Autenticazione**: Richiedere un token JWT per identificare e autorizzare l’utente.
 - **Scopo**: Consentire agli utenti di aggiornare le proprie informazioni personali.
 
----
-
-## 2. Comportamento
+## Comportamento
 
 ### 1. Autenticazione
 - Recuperare il token JWT dall’intestazione `Authorization`.
@@ -18,14 +14,15 @@ Ecco la versione aggiornata dell’endpoint /update_user con l’inclusione del 
 - Verificare che l’utente esista nel database.
 
 ### 2. Parametri Accettati
-Il corpo della richiesta deve essere in formato JSON. Campi aggiornabili:
-- `name` (stringa)
-- `surname` (stringa)
-- `phone_number` (stringa, formato validato)
-- `company` (stringa)
-- `vat_number` (stringa, formato validato)
 
-> **Nota**: È importante validare ogni campo prima di aggiornarlo nel database.
+Il corpo della richiesta deve essere in formato JSON. Campi aggiornabili:
+- **name** (stringa)
+- **surname** (stringa)
+- **phone_number** (stringa, formato validato)
+- **company** (stringa)
+- **vat_number** (stringa, formato validato)
+
+Nota: È importante validare ogni campo prima di aggiornarlo nel database.
 
 ### 3. Aggiornamento
 - Aggiornare solo i campi presenti nella richiesta.
@@ -34,11 +31,10 @@ Il corpo della richiesta deve essere in formato JSON. Campi aggiornabili:
 ### 4. Risposta
 - Restituire uno stato di successo con i dati aggiornati o un messaggio di errore in caso di fallimento.
 
----
-
 ## 3. Esempio di Richiesta
 
-### Richiesta `PUT /update_user`
+Richiesta `PUT /update_user`
+
 ```
 {
   "name": "John",
@@ -49,13 +45,15 @@ Il corpo della richiesta deve essere in formato JSON. Campi aggiornabili:
 }
 ```
 
----
-
-## 4. Risposte dell'Endpoint
+## 4. Risposte dell’Endpoint
 
 ### Successo
-- **HTTP Status**: `200 OK`
-- **Body**:
+
+| HTTP Status | Messaggio     |
+|-------------|---------------|
+| 200 OK      | "Successo"    |
+
+**Body:**
 ```
 {
   "status": "success",
@@ -70,11 +68,13 @@ Il corpo della richiesta deve essere in formato JSON. Campi aggiornabili:
 }
 ```
 
----
-
 ### Errore: Utente Non Autenticato
-- **HTTP Status**: `401 Unauthorized`
-- **Body**:
+
+| HTTP Status | Messaggio                  |
+|-------------|----------------------------|
+| 401 Unauthorized | "Authorization token required." |
+
+**Body:**
 ```
 {
   "status": "error",
@@ -83,11 +83,13 @@ Il corpo della richiesta deve essere in formato JSON. Campi aggiornabili:
 }
 ```
 
----
-
 ### Errore: Utente Non Trovato
-- **HTTP Status**: `404 Not Found`
-- **Body**:
+
+| HTTP Status | Messaggio                  |
+|-------------|----------------------------|
+| 404 Not Found | "User not found."         |
+
+**Body:**
 ```
 {
   "status": "error",
@@ -95,8 +97,6 @@ Il corpo della richiesta deve essere in formato JSON. Campi aggiornabili:
   "message": "User not found."
 }
 ```
-
----
 
 ## 5. Codice Aggiornato
 
@@ -141,26 +141,32 @@ def update_user():
     })
 ```
 
----
-
 ## 6. Validazioni da Implementare
-
 1. **Formato Numero di Telefono**:
-   - Verificare che `phone_number` sia in un formato valido (es. con prefisso internazionale, come `+1234567890`).
-
+   - Verificare che `phone_number` sia in un formato valido (es. con prefisso internazionale, come +1234567890).
 2. **Partita IVA**:
-   - Verificare che `vat_number` sia valido per il paese (es. per l’Italia, formato `IT12345678901`).
-
+   - Verificare che `vat_number` sia valido per il paese (es. per l’Italia, formato IT12345678901).
 3. **Dati Mancanti**:
    - Ignorare i campi non inclusi nella richiesta senza sovrascrivere i valori esistenti.
 
----
+## 7. Considerazioni Aggiuntive (Migliorie Opzionali)
 
-## 7. Prossimi Passi
+1. **Gestione degli Errori Dettagliata**:
+   - Fornire errori specifici per ogni tipo di fallimento, come errore nel formato dei dati o problemi con il salvataggio nel database.
+   - **Miglioria opzionale**: Includere il tipo di errore (es. errore di convalida, errore di database) nella risposta per facilitare la risoluzione dei problemi.
+2. **Rate Limiting**:
+   - Limitare il numero di richieste per IP o utente per prevenire abusi (e.g. 5 richieste per minuto).
+   - **Miglioria opzionale**: Aggiungere il rate limiting per prevenire tentativi di abuso dell’endpoint (ad esempio attacchi brute force).
+3. **Audit Log**:
+   - Creare un log di audit per tracciare quando e da chi sono stati effettuati aggiornamenti ai dati dell’utente.
+   - **Miglioria opzionale**: Integrare un sistema di logging per monitorare le modifiche e mantenere traccia delle operazioni per scopi di sicurezza e debugging.
 
-1. **Implementare l'endpoint** seguendo le specifiche.
-2. **Testare** i seguenti scenari:
+## 8. Prossimi Passi
+1. Implementare l’endpoint seguendo le specifiche.
+2. Testare i seguenti scenari:
    - Aggiornamento parziale (es. modifica solo del `name`).
    - Aggiornamento completo con tutti i campi.
    - Invio di dati non validi (es. numero di telefono errato).
-3. **Aggiornare la documentazione API** per includere dettagli su questo endpoint.
+3. Aggiornare la documentazione API per includere dettagli su questo endpoint.
+4. Integrare il rate limiting per prevenire abusi.
+5. Valutare l’implementazione di un sistema di audit log per monitorare gli aggiornamenti.
