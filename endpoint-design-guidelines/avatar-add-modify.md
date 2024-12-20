@@ -26,7 +26,7 @@
 - Generare un nome univoco per il file (es. `{user_id}_avatar.png`).
 - **Storage locale**:
   - Salvare il file in una directory specifica sul server.
-- **Storage cloud**:
+- **Storage cloud (miglioria opzionale)**:
   - Caricare il file su un servizio come AWS S3 o Google Cloud Storage e ottenere l’URL del file.
 
 ### 4. Aggiornamento del Database
@@ -43,7 +43,7 @@
 - File immagine inviato nel campo `avatar`.
 
 ### Risposta in caso di successo
-```json
+```
 {
   "status": "success",
   "code": 200,
@@ -54,17 +54,19 @@
 ```
 
 ### Risposta in caso di errore
-```json
+```
 {
   "status": "error",
   "code": 400,
   "message": "Invalid file type"
 }
-````
+```
 
-## Esempio di codice
+---
 
-```py
+## Esempio di Codice
+
+```
 @v1.route('/upload_avatar', methods=['POST'])
 def upload_avatar():
     # Autenticazione tramite token JWT
@@ -112,20 +114,22 @@ def upload_avatar():
     return jsonify_return_success("success", 200, {"avatar_url": avatar_url})
 ```
 
+---
+
 ## Considerazioni Importanti
 
-1. **Validazioni Avanzate**:
+### 1. **Validazioni Avanzate (miglioria opzionale)**
    - Verificare che il file caricato sia effettivamente un’immagine.
-   - Controllare eventuali limitazioni sulla risoluzione dell’immagine (opzionale).
+   - Controllare eventuali limitazioni sulla risoluzione dell’immagine.
 
-2. **Storage Cloud**:
+### 2. **Storage Cloud (miglioria opzionale)**
    - Se utilizzi uno storage cloud, integra le API del provider per caricare il file e ottenere l’URL.
 
-3. **Sovrascrittura**:
+### 3. **Sovrascrittura**
    - L'endpoint dovrebbe sempre sovrascrivere l’avatar esistente con quello nuovo.
 
-4. **Gestione degli Errori**:
-   - Restituire messaggi chiari per problemi relativi all'autenticazione, validazione del file, o errori di salvataggio.
+### 4. **Gestione degli Errori**
+   - Restituire messaggi chiari per problemi relativi all'autenticazione, validazione del file o errori di salvataggio.
 
 ---
 
@@ -139,4 +143,3 @@ def upload_avatar():
    - Sostituzione di un avatar esistente.
    - Invio di un file non valido (es. dimensioni o formato errato).
 4. **Aggiornare la documentazione API** per includere i dettagli di questo endpoint.
-
