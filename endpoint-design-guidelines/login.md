@@ -1,5 +1,3 @@
-Endpoint: /login
-
 # Endpoint: `/login`
 
 ## 1. Dettagli
@@ -81,9 +79,9 @@ def login():
 2. **Sicurezza del Token JWT**:
    - Utilizzare una chiave segreta robusta (`SECRET_KEY`).
    - Configurare una scadenza adeguata (es. 1 ora).
-   - Opzionale: Aggiungere `iat` (issued at) e `jti` (unique identifier) al payload del JWT per maggiore sicurezza.
+   - **Aggiungere `iat` (issued at) e `jti` (unique identifier) al payload del JWT (miglioria opzionale)** per maggiore sicurezza.
 
-3. **Blacklist dei Token**:
+3. **Blacklist dei Token (miglioria opzionale)**:
    - Implementare una blacklist per invalidare i token in caso di logout o compromissione.
 
 4. **Protezione contro Brute Force**:
@@ -92,6 +90,7 @@ def login():
 ---
 
 ## 6. Risposte dell'Endpoint
+
 ### Successo
 - **HTTP Status**: `200 OK`
 - **Body**:
@@ -108,6 +107,7 @@ def login():
 ```
 
 ### Errori
+
 1. **Utente non trovato**:
    - **HTTP Status**: `401 Unauthorized`
    - **Body**:
@@ -192,30 +192,21 @@ def login():
 
 ---
 
-## 8. Prossimi Passi
-1. **Implementare l'endpoint** seguendo le specifiche sopra.
-2. **Testare i seguenti scenari**:
-   - Login corretto con credenziali valide.
-   - Login con credenziali errate.
-   - Login con un account non verificato.
-   - Eccesso di tentativi di login.
-3. **Configurare HTTPS** e testare l'accesso solo tramite connessioni sicure.
-4. **Integrare il frontend** per inviare credenziali all'endpoint `/login`.
+## 8. Miglioramenti Futuri per l'Endpoint `/login`
 
-   ## Miglioramenti Futuri per l'Endpoint `/login`
+1. **Blacklist per Token JWT (miglioria opzionale)**:
+   - Implementare una blacklist per invalidare i token JWT in caso di logout o compromissione.
 
-Per rendere l'endpoint `/login` più robusto e sicuro, abbiamo identificato alcune migliorie che possono essere implementate:
+2. **Blocco IP su Tentativi Falliti (miglioria opzionale)**:
+   - Configurare un meccanismo per bloccare temporaneamente gli IP che superano un certo numero di tentativi di login falliti.
 
-1. **Blacklist per Token JWT**:
-   - Implementare una blacklist per invalidare i token JWT in caso di logout o compromissione. Questo migliora la sicurezza del sistema evitando l'uso di token non più validi.
-
-2. **Blocco IP su Tentativi Falliti**:
-   - Configurare un meccanismo per bloccare temporaneamente gli IP che superano un certo numero di tentativi di login falliti. Questo fornisce una protezione aggiuntiva contro attacchi brute force.
-
-3. **Monitoraggio Avanzato**:
+3. **Monitoraggio Avanzato (miglioria opzionale)**:
    - Integrare strumenti di monitoraggio come Prometheus o Grafana per raccogliere metriche dettagliate:
      - Numero di login riusciti e falliti.
      - Tentativi di login per IP e frequenza di blocchi.
 
-4. **Feedback Migliorato**:
+4. **Feedback Migliorato (miglioria opzionale)**:
    - Includere nelle risposte il numero rimanente di tentativi prima del blocco per migliorare l'esperienza utente.
+
+---
+
