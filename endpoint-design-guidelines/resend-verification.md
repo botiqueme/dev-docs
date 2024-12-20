@@ -1,9 +1,7 @@
-Ecco la documentazione aggiornata con i delimitatori corretti ```:
-
 # Endpoint: `/resend_verification`
 
 ## Scopo
-Questo endpoint consente agli utenti di richiedere un nuovo token di verifica email nel caso in cui quello precedente sia scaduto o non valido. Garantisce un'esperienza utente fluida e sicura, integrando meccanismi di sicurezza avanzati.
+Consente agli utenti di richiedere un nuovo token di verifica email nel caso in cui quello precedente sia scaduto o non valido. Questo endpoint garantisce un'esperienza utente fluida, sicura e conforme ai requisiti di sicurezza.
 
 ---
 
@@ -203,5 +201,3 @@ def resend_verification():
    - Creare una pagina per notificare l'utente sullo stato della richiesta:
      - "Link di verifica inviato."
      - "Errore durante la rigenerazione del token."
-
-Questa versione include tutte le migliorie proposte, con il formato richiesto per i snippet. Procediamo con eventuali aggiustamenti o con il prossimo endpoint? 😊
