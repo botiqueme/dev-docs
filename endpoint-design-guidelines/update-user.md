@@ -1,28 +1,29 @@
-# Endpoint: Aggiornamento delle Informazioni Utente
+Ecco la versione aggiornata dell’endpoint /update_user con l’inclusione del User ID e le modifiche necessarie:
 
-## Dettagli
-- **Endpoint**: `/update_user`
+# Endpoint: `/update_user`
+
+## 1. Dettagli
+- **URL**: `/update_user`
 - **Metodo**: `PUT` o `PATCH` (preferibile per aggiornamenti parziali).
 - **Autenticazione**: Richiedere un token JWT per identificare e autorizzare l’utente.
 - **Scopo**: Consentire agli utenti di aggiornare le proprie informazioni personali.
 
 ---
 
-## Comportamento
+## 2. Comportamento
 
 ### 1. Autenticazione
 - Recuperare il token JWT dall’intestazione `Authorization`.
-- Decodificare il token per ottenere l’identità dell’utente.
+- Decodificare il token per ottenere l’`user_id`.
 - Verificare che l’utente esista nel database.
 
 ### 2. Parametri Accettati
-- Il body della richiesta deve essere in formato JSON.
-- Campi aggiornabili:
-  - `name` (stringa)
-  - `surname` (stringa)
-  - `phone_number` (stringa, formato validato)
-  - `company` (stringa)
-  - `vat_number` (stringa, formato validato)
+Il corpo della richiesta deve essere in formato JSON. Campi aggiornabili:
+- `name` (stringa)
+- `surname` (stringa)
+- `phone_number` (stringa, formato validato)
+- `company` (stringa)
+- `vat_number` (stringa, formato validato)
 
 > **Nota**: È importante validare ogni campo prima di aggiornarlo nel database.
 
@@ -35,10 +36,10 @@
 
 ---
 
-## Esempio di Richiesta
+## 3. Esempio di Richiesta
 
 ### Richiesta `PUT /update_user`
-```json
+```
 {
   "name": "John",
   "surname": "Doe",
@@ -48,9 +49,14 @@
 }
 ```
 
-## Esempio di Risposra
-### Risposta in caso di successo
-```json
+---
+
+## 4. Risposte dell'Endpoint
+
+### Successo
+- **HTTP Status**: `200 OK`
+- **Body**:
+```
 {
   "status": "success",
   "code": 200,
@@ -64,30 +70,37 @@
 }
 ```
 
-### Risposta in caso di errore
+---
 
-#### Utente non autenticato
-
-```json
+### Errore: Utente Non Autenticato
+- **HTTP Status**: `401 Unauthorized`
+- **Body**:
+```
 {
   "status": "error",
   "code": 401,
-  "message": "Authorization token required"
+  "message": "Authorization token required."
 }
 ```
-#### Utente non trovato
 
-```json
+---
+
+### Errore: Utente Non Trovato
+- **HTTP Status**: `404 Not Found`
+- **Body**:
+```
 {
   "status": "error",
   "code": 404,
-  "message": "User not found"
+  "message": "User not found."
 }
-````
+```
 
-## Esempio di codice 
+---
 
-```py
+## 5. Codice Aggiornato
+
+```
 @v1.route('/update_user', methods=['PUT'])
 def update_user():
     # Autenticazione tramite token JWT
@@ -98,12 +111,12 @@ def update_user():
     try:
         token = auth_header.split(" ")[1]
         payload = jwt.decode(token, current_app.config['SECRET_KEY'], algorithms=['HS256'])
-        email = payload['email']
+        user_id = payload['user_id']
     except Exception:
         return jsonify_return_error("error", 401, "Invalid token"), 401
 
     # Recupero dell'utente
-    user = User.query.filter_by(email=email).first()
+    user = User.query.filter_by(user_id=user_id).first()
     if not user:
         return jsonify_return_error("error", 404, "User not found"), 404
 
@@ -128,7 +141,9 @@ def update_user():
     })
 ```
 
-## Validazioni da Implementare
+---
+
+## 6. Validazioni da Implementare
 
 1. **Formato Numero di Telefono**:
    - Verificare che `phone_number` sia in un formato valido (es. con prefisso internazionale, come `+1234567890`).
@@ -141,7 +156,7 @@ def update_user():
 
 ---
 
-## Prossimi Passi
+## 7. Prossimi Passi
 
 1. **Implementare l'endpoint** seguendo le specifiche.
 2. **Testare** i seguenti scenari:
