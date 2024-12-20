@@ -61,7 +61,7 @@ Esempio di richiesta:
    - Limitare a 3 richieste per ora per ciascun indirizzo IP/email.
    - Implementare logging dettagliato per monitorare tentativi sospetti.
 
-7. **Logging e Monitoraggio**:
+7. **Logging e Monitoraggio (miglioria opzionale)**:
    - Loggare ogni tentativo di rigenerazione (successo/fallimento).
    - Raccogliere metriche per analisi future.
 
@@ -178,7 +178,7 @@ def resend_verification():
 3. **Error Handling**:
    - Gestione dettagliata degli errori per migliorare l'esperienza utente e la sicurezza.
 
-4. **Logging**:
+4. **Logging (miglioria opzionale)**:
    - Monitoraggio avanzato di successi e fallimenti per analisi e prevenzione di attacchi.
 
 ---
@@ -192,7 +192,7 @@ def resend_verification():
      - Utente già verificato.
      - Rate limiting.
 
-2. **Monitoraggio Avanzato**:
+2. **Monitoraggio Avanzato (miglioria opzionale)**:
    - Integrare strumenti come Prometheus per raccogliere metriche:
      - Numero di email rigenerate.
      - Frequenza di errori.
