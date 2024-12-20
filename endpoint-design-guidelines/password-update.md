@@ -1,4 +1,3 @@
-Hai assolutamente ragione, l’User ID è fondamentale per un sistema sicuro e scalabile, e ora dobbiamo assicurarci che l’endpoint di update password sia progettato correttamente. Ecco una soluzione dettagliata e completa per l’implementazione dell’endpoint.
 
 # Endpoint: `/update_password`
 
@@ -10,102 +9,24 @@ Hai assolutamente ragione, l’User ID è fondamentale per un sistema sicuro e s
 
 ---
 
-## 2. Comportamento
-
-### **1. Autenticazione**
-- Recuperare il token JWT dall’intestazione `Authorization`.
-- Decodificare il token per ottenere l’`user_id`.
-- Verificare che l’utente esista nel database.
-
-### **2. Parametri Accettati**
-Il corpo della richiesta deve essere in formato JSON e contenere i seguenti parametri:
-| **Parametro**       | **Tipo**  | **Obbligatorio** | **Descrizione**                                  |
-|----------------------|-----------|------------------|------------------------------------------------|
-| `current_password`  | Stringa   | Sì               | La password attuale dell’utente.               |
-| `new_password`      | Stringa   | Sì               | La nuova password da impostare.                |
-
-Esempio di richiesta:
-```
-{
-  "current_password": "old_password123",
-  "new_password": "new_secure_password456"
-}
-```
+## 2. Implementazione del Rate Limiting
+Il rate limiting è stato aggiunto per impedire attacchi brute force. Sono consentite:
+- **3 tentativi per minuto per IP**.
+- Configurabile per modificare il limite se necessario.
 
 ---
 
-### **3. Validazioni**
-1. **Password Attuale**:
-   - Verificare che la password fornita corrisponda a quella salvata nel database.
-   - Restituire un errore se la password non è corretta.
-
-2. **Nuova Password**:
-   - Assicurarsi che la nuova password rispetti i criteri di sicurezza (es. lunghezza minima, caratteri speciali, ecc.).
-   - Evitare che la nuova password sia uguale a quella attuale.
-
----
-
-### **4. Aggiornamento**
-- Aggiornare la password dell’utente nel database utilizzando un hash sicuro (`bcrypt`).
-- Invalidate eventuali token JWT attivi se richiesto (opzionale, basato sulle politiche di sicurezza).
-
----
-
-## 3. Risposte dell'Endpoint
-
-### Successo
-- **HTTP Status**: `200 OK`
-- **Body**:
-```
-{
-  "status": "success",
-  "code": 200,
-  "message": "Password updated successfully."
-}
-```
-
----
-
-### Errori
-1. **Utente Non Autenticato**:
-   - **HTTP Status**: `401 Unauthorized`
-   - **Body**:
-```
-{
-  "status": "error",
-  "code": 401,
-  "message": "Authorization token required."
-}
-```
-
-2. **Password Attuale Non Corretta**:
-   - **HTTP Status**: `400 Bad Request`
-   - **Body**:
-```
-{
-  "status": "error",
-  "code": 400,
-  "message": "Current password is incorrect."
-}
-```
-
-3. **Utente Non Trovato**:
-   - **HTTP Status**: `404 Not Found`
-   - **Body**:
-```
-{
-  "status": "error",
-  "code": 404,
-  "message": "User not found."
-}
-```
-
----
-
-## 4. Codice Aggiornato
+## 3. Codice Aggiornato con Rate Limiting
 
 ```
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
+
+# Configurazione del rate limiting
+limiter = Limiter(key_func=get_remote_address, default_limits=["3 per minute"])
+
 @v1.route('/update_password', methods=['PUT'])
+@limiter.limit("3 per minute")  # Rate limiting specifico per l'endpoint
 def update_password():
     # Autenticazione tramite token JWT
     auth_header = request.headers.get('Authorization')
@@ -153,25 +74,34 @@ def update_password():
 
 ---
 
-## 5. Validazioni da Implementare
+## 4. Considerazioni sul Rate Limiting
 
-1. **Criteri di Sicurezza**:
-   - Lunghezza minima di 8 caratteri.
-   - Almeno una lettera maiuscola, un numero e un carattere speciale.
+1. **Configurabilità**:
+   - La limitazione è attualmente impostata a **3 tentativi per minuto per IP**.
+   - Può essere modificata in base ai requisiti di sicurezza (es. `5 per 10 minuti` o `10 per giorno`).
 
-2. **Prevenzione Password Riutilizzate** (Opzionale):
-   - Salvare un hash delle ultime 3 password e verificare che la nuova password non coincida con queste.
+2. **Gestione degli Errori di Rate Limiting**:
+   - Se un utente supera il limite di richieste, Flask-Limiter restituirà automaticamente:
+     - **HTTP Status**: `429 Too Many Requests`
+     - **Body**:
+```
+{
+  "status": "error",
+  "code": 429,
+  "message": "Too many requests. Please try again later."
+}
+```
 
-3. **Scadenza dei Token** (Opzionale):
-   - Invalidate i token JWT attivi dopo un cambio di password.
+3. **Prevenzione degli Abusi**:
+   - Il rate limiting protegge da attacchi brute force senza bloccare l'intero sistema.
 
 ---
 
-## 6. Prossimi Passi
+## 5. Prossimi Passi
 
-1. **Implementare l'endpoint** seguendo le specifiche.
-2. **Testare**:
-   - Cambio password con dati validi.
-   - Tentativi con password attuale errata.
-   - Nuova password che non rispetta i criteri.
-3. **Aggiornare la documentazione API** per includere dettagli su questo endpoint.
+1. **Testare il comportamento del rate limiting**:
+   - Simulare più tentativi di aggiornamento password in breve tempo per verificare che il rate limiting funzioni correttamente.
+2. **Integrare il rate limiting su altri endpoint sensibili**, come `/login` o `/change_email`.
+3. **Documentare il comportamento del rate limiting** per i team di sviluppo e QA.
+
+Se hai bisogno di ulteriori modifiche o di altri miglioramenti, fammi sapere! 😊
