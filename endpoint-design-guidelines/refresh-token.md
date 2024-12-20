@@ -58,6 +58,7 @@ Authorization: Bearer <refresh_token>
 ---
 
 ### Errori
+
 1. **Refresh Token Mancante**:
    - **HTTP Status**: `401 Unauthorized`
    - **Body**:
@@ -68,7 +69,7 @@ Authorization: Bearer <refresh_token>
   "message": "Refresh token missing."
 }
 ```
-   
+
 2. **Refresh Token Non Valido**:
    - **HTTP Status**: `401 Unauthorized`
    - **Body**:
@@ -149,8 +150,11 @@ def refresh_token():
 2. **Blacklist**:
    - Implementare una blacklist per invalidare i refresh token in caso di logout.
 
-3. **Rotazione del Refresh Token**:
-   - Opzionale: Generare un nuovo refresh token quando quello attuale viene utilizzato.
+3. **Rotazione del Refresh Token (miglioria opzionale)**:
+   - Generare un nuovo refresh token quando quello attuale viene utilizzato.
+
+4. **Sicurezza Avanzata (miglioria opzionale)**:
+   - Includere `jti` (unique identifier) per tracciare i token.
 
 ---
 
@@ -161,4 +165,9 @@ def refresh_token():
    - Richieste valide con un refresh token funzionante.
    - Richieste con token scaduto o non valido.
    - Comportamento in caso di utente non trovato.
-3. **Aggiornare la documentazione API** per includere dettagli su questo endpoint.
+3. **Integrare la blacklist per il refresh token**.
+4. **Aggiornare la documentazione API** per includere dettagli su questo endpoint.
+5. **Integrare la rotazione del token (opzionale)** per aumentare la sicurezza.
+
+---
+
