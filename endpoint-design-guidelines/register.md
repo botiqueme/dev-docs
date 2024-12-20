@@ -189,76 +189,15 @@ def register():
 - **Problema**: Gli utenti che non verificano l'email possono rimanere nel database indefinitamente.
 - **Soluzione**:
   - Implementare un sistema per eliminare automaticamente gli utenti non verificati dopo un periodo (es. 7 giorni).
-  - Strumenti consigliati:
-    - **Task Scheduler**:
-      - Celery con Beat per configurare un job periodico.
-      - Alternativamente, un cron job che utilizza uno script per eliminare gli utenti.
-    - Query SQL per selezionare ed eliminare gli utenti non verificati:
-      ```sql
-      DELETE FROM users WHERE is_verified = FALSE AND created_at < NOW() - INTERVAL '7 days';
-      ```
-  - Aggiungere log per monitorare le operazioni di pulizia.
-
----
 
 ### 2. Test Automatici
-- **Problema**: La documentazione non specifica i test necessari per coprire i casi limite.
-- **Soluzione**:
-  - Scrivere test automatici per i seguenti scenari:
-    - **Registrazione valida**: Utente creato con dati corretti.
-    - **Email duplicata**: Tentativo di registrare un'email già esistente.
-    - **Parametri mancanti**: Risposta appropriata quando uno o più parametri sono assenti.
-    - **Email temporanea**: Verificare che l'endpoint rifiuti email usa e getta.
-    - **Superamento del rate limit**: Simulare più richieste dallo stesso IP per assicurarsi che il rate limiting funzioni.
-  - Strumenti consigliati:
-    - **Librerie di test**: `pytest`, `unittest` o `Postman` per test manuali.
-    - Integrare i test nel CI/CD (es. GitHub Actions).
+- Scrivere test automatici per i seguenti scenari:
+  - **Registrazione valida**
+  - **Email duplicata**
+  - **Parametri mancanti**
 
----
+### 3. Scalabilità per Invio Email
+- Implementare una coda per gestire l'invio delle email.
 
-### 3. Monitoraggio e Metriche
-- **Problema**: Mancano indicazioni su come monitorare l'utilizzo dell'endpoint e individuare eventuali problemi.
-- **Soluzione**:
-  - Aggiungere metriche per:
-    - **Numero di registrazioni**: Utenti registrati con successo ogni giorno.
-    - **Numero di email inviate**: Per monitorare eventuali fallimenti.
-    - **Tasso di errore**: Percentuale di richieste che falliscono.
-  - Strumenti consigliati:
-    - Prometheus + Grafana per raccogliere e visualizzare le metriche.
-    - Libreria come `statsd` per inviare metriche dal backend.
-
----
-
-### 4. Scalabilità per Invio Email
-- **Problema**: In caso di alto volume di registrazioni, l'invio di email potrebbe diventare un collo di bottiglia.
-- **Soluzione**:
-  - Implementare una coda per gestire l'invio delle email:
-    - **Strumenti consigliati**:
-      - RabbitMQ o Redis con Celery per gestire la coda.
-  - Configurare retry in caso di fallimento durante l'invio.
-  - Separare il processo di registrazione dall'invio dell'email per migliorare i tempi di risposta.
-
----
-
-### 5. Sicurezza Avanzata
-- **Problema**: Mancano test e strategie specifiche contro attacchi avanzati.
-- **Soluzione**:
-  - **Test di Sicurezza**:
-    - Simulare attacchi brute force per verificare l'efficacia del rate limiting.
-    - Eseguire scansioni di vulnerabilità (es. OWASP ZAP).
-  - **Blacklist Token di Verifica**:
-    - Creare una blacklist per invalidare i token di verifica email in caso di abuso.
-
----
-
-### 6. Preparazione per il Futuro
-- Integrare l'endpoint con sistemi di identità esterni (es. OAuth con Google o Microsoft) per semplificare la registrazione.
-- Aggiungere localizzazione per supportare diverse lingue nei messaggi di errore e nell'email di verifica.
-
----
-
-## Prossimi Passi
-- Implementare un **cron job** per eliminare utenti non verificati.
-- Scrivere test automatici per tutti gli scenari menzionati.
-- Configurare metriche con Prometheus per monitorare l'utilizzo dell'endpoint.
-- Pianificare l'introduzione di una coda per l'invio delle email in vista della scalabilità.
+### 4. Monitoraggio e Metriche
+- Aggiungere metriche per monitorare il comportamento dell'endpoint.
