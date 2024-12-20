@@ -1,4 +1,3 @@
-
 # Endpoint: `/update_password`
 
 ## 1. Dettagli
@@ -9,22 +8,103 @@
 
 ---
 
-## 2. Implementazione del Rate Limiting
-Il rate limiting è stato aggiunto per impedire attacchi brute force. Sono consentite:
-- **3 tentativi per minuto per IP**.
-- Configurabile per modificare il limite se necessario.
+## 2. Comportamento dell'Endpoint
+
+### 1. Parametri Accettati
+Il corpo della richiesta deve essere in formato JSON e includere:
+- `current_password` (stringa, obbligatorio): La password attuale dell’utente.
+- `new_password` (stringa, obbligatorio): La nuova password scelta dall’utente.
+
+Esempio di richiesta:
+```
+{
+  "current_password": "mypassword123",
+  "new_password": "newpassword456"
+}
+```
+
+### 2. Validazioni
+1. **Autenticazione**:
+   - Verificare il token JWT per identificare l’utente.
+2. **Presenza dei campi**:
+   - Entrambi i campi `current_password` e `new_password` devono essere forniti.
+3. **Confronto delle Password**:
+   - La nuova password deve essere diversa da quella attuale.
+
+### 3. Rate Limiting
+- Configurare un limite di **3 tentativi per minuto per IP** utilizzando Flask-Limiter.
+- Bloccare ulteriori richieste oltre il limite per prevenire abusi.
+
+### 4. Aggiornamento della Password
+- Verificare che la password attuale fornita corrisponda a quella hashata nel database.
+- Generare l’hash della nuova password e aggiornare il database.
 
 ---
 
-## 3. Codice Aggiornato con Rate Limiting
+## 3. Risposte dell'Endpoint
+
+### Successo
+- **HTTP Status**: `200 OK`
+- **Body**:
+```
+{
+  "status": "success",
+  "code": 200,
+  "message": "Password updated successfully."
+}
+```
+
+### Errori
+
+1. **Autenticazione Non Riuscita**:
+   - **HTTP Status**: `401 Unauthorized`
+   - **Body**:
+```
+{
+  "status": "error",
+  "code": 401,
+  "message": "Authorization token required."
+}
+```
+
+2. **Parametri Mancanti**:
+   - **HTTP Status**: `400 Bad Request`
+   - **Body**:
+```
+{
+  "status": "error",
+  "code": 400,
+  "message": "Both current and new passwords are required."
+}
+```
+
+3. **Password Errata**:
+   - **HTTP Status**: `400 Bad Request`
+   - **Body**:
+```
+{
+  "status": "error",
+  "code": 400,
+  "message": "Current password is incorrect."
+}
+```
+
+4. **Rate Limiting Superato**:
+   - **HTTP Status**: `429 Too Many Requests`
+   - **Body**:
+```
+{
+  "status": "error",
+  "code": 429,
+  "message": "Too many requests. Please try again later."
+}
+```
+
+---
+
+## 4. Codice Aggiornato
 
 ```
-from flask_limiter import Limiter
-from flask_limiter.util import get_remote_address
-
-# Configurazione del rate limiting
-limiter = Limiter(key_func=get_remote_address, default_limits=["3 per minute"])
-
 @v1.route('/update_password', methods=['PUT'])
 @limiter.limit("3 per minute")  # Rate limiting specifico per l'endpoint
 def update_password():
@@ -65,43 +145,32 @@ def update_password():
     user.password_hash = hash_password(new_password)
     db.session.commit()
 
-    return jsonify({
-        "status": "success",
-        "code": 200,
-        "message": "Password updated successfully."
-    }), 200
+    return jsonify_return_success("success", 200, {"message": "Password updated successfully"})
 ```
 
 ---
 
-## 4. Considerazioni sul Rate Limiting
+## 5. Considerazioni Importanti
 
-1. **Configurabilità**:
-   - La limitazione è attualmente impostata a **3 tentativi per minuto per IP**.
-   - Può essere modificata in base ai requisiti di sicurezza (es. `5 per 10 minuti` o `10 per giorno`).
+### 1. **Configurabilità del Rate Limiting**
+   - Limite predefinito: **3 tentativi per minuto per IP**.
+   - Può essere personalizzato in base ai requisiti di sicurezza.
 
-2. **Gestione degli Errori di Rate Limiting**:
-   - Se un utente supera il limite di richieste, Flask-Limiter restituirà automaticamente:
-     - **HTTP Status**: `429 Too Many Requests`
-     - **Body**:
-```
-{
-  "status": "error",
-  "code": 429,
-  "message": "Too many requests. Please try again later."
-}
-```
+### 2. **Logging Dettagliato**
+   - Loggare tutte le richieste per monitorare:
+     - Tentativi di aggiornamento riusciti.
+     - Tentativi di aggiornamento falliti.
 
-3. **Prevenzione degli Abusi**:
-   - Il rate limiting protegge da attacchi brute force senza bloccare l'intero sistema.
+### 3. **Protezione Avanzata (miglioria opzionale)**
+   - Utilizzare un sistema di notifiche per avvisare l’utente di modifiche alla password non autorizzate.
 
 ---
 
-## 5. Prossimi Passi
+## 6. Prossimi Passi
 
 1. **Testare il comportamento del rate limiting**:
-   - Simulare più tentativi di aggiornamento password in breve tempo per verificare che il rate limiting funzioni correttamente.
-2. **Integrare il rate limiting su altri endpoint sensibili**, come `/login` o `/change_email`.
-3. **Documentare il comportamento del rate limiting** per i team di sviluppo e QA.
-
-Se hai bisogno di ulteriori modifiche o di altri miglioramenti, fammi sapere! 😊
+   - Simulare più tentativi di aggiornamento password in breve tempo.
+2. **Integrare la protezione avanzata (miglioria opzionale)**:
+   - Notifiche per aggiornamenti password sospetti.
+3. **Aggiornare la documentazione API**:
+   - Documentare il comportamento dell’endpoint e i limiti configurati.
