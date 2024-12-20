@@ -1,4 +1,4 @@
-Endpoint: /login (Aggiornato con User ID)
+Endpoint: /login
 
 # Endpoint: `/login`
 
@@ -201,3 +201,21 @@ def login():
    - Eccesso di tentativi di login.
 3. **Configurare HTTPS** e testare l'accesso solo tramite connessioni sicure.
 4. **Integrare il frontend** per inviare credenziali all'endpoint `/login`.
+
+   ## Miglioramenti Futuri per l'Endpoint `/login`
+
+Per rendere l'endpoint `/login` più robusto e sicuro, abbiamo identificato alcune migliorie che possono essere implementate:
+
+1. **Blacklist per Token JWT**:
+   - Implementare una blacklist per invalidare i token JWT in caso di logout o compromissione. Questo migliora la sicurezza del sistema evitando l'uso di token non più validi.
+
+2. **Blocco IP su Tentativi Falliti**:
+   - Configurare un meccanismo per bloccare temporaneamente gli IP che superano un certo numero di tentativi di login falliti. Questo fornisce una protezione aggiuntiva contro attacchi brute force.
+
+3. **Monitoraggio Avanzato**:
+   - Integrare strumenti di monitoraggio come Prometheus o Grafana per raccogliere metriche dettagliate:
+     - Numero di login riusciti e falliti.
+     - Tentativi di login per IP e frequenza di blocchi.
+
+4. **Feedback Migliorato**:
+   - Includere nelle risposte il numero rimanente di tentativi prima del blocco per migliorare l'esperienza utente.
