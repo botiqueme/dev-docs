@@ -61,10 +61,7 @@ Content-Type: application/json
 ### **Errori**
 | **Causa**                  | **HTTP Status** | **Messaggio**                                |
 |----------------------------|-----------------|---------------------------------------------|
-| Parametri mancanti         | `400 Bad Request` | "Missing fields: email, password"          |
-| Email non valida           | `400 Bad Request` | "Invalid email format"                     |
 | Email temporanea           | `400 Bad Request` | "Disposable emails are not allowed."       |
-| Password non valida        | `400 Bad Request` | "Password does not meet security criteria."|
 | Email duplicata            | `409 Conflict`    | "Email already registered."                |
 | Rate limit superato        | `429 Too Many Requests` | "Too many requests. Please try again later." |
 | Integrita' del database    | `500 Error` | "Internal Server Error, please contact the admin" |
