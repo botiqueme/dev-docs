@@ -67,7 +67,7 @@ Content-Type: application/json
 | Password non valida        | `400 Bad Request` | "Password does not meet security criteria."|
 | Email duplicata            | `409 Conflict`    | "Email already registered."                |
 | Rate limit superato        | `429 Too Many Requests` | "Too many requests. Please try again later." |
-| Integrita' del database    | `500 DB Integrity` | "Database Integrity Error. Please contact the admin." |
+| Integrita' del database    | `500 Error` | "Internal Server Error, please contact the admin" |
 
 ---
 
