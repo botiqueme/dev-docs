@@ -72,18 +72,18 @@ Content-Type: application/json
 
 ### **1. Ricezione della Richiesta**
 1. Recuperare i parametri inviati dal frontend.
-2. Controllare che tutti i campi obbligatori siano presenti.
+2. Controllare che tutti i campi obbligatori siano presenti (gestito dal frontend).
 
 ### **2. Validazione**
 - **Email**:
-  - Formato valido (regex).
+  - Formato valido (gestito dal frontend).
   - Non temporanea (libreria `is_disposable_email`).
 - **Password**:
-  - Lunghezza minima 8 caratteri.
-  - Deve contenere almeno 1 maiuscola, 1 numero, 1 carattere speciale.
+  - Lunghezza minima 8 caratteri (gestito dal frontend)
+  - Deve contenere almeno 1 maiuscola, 1 numero, 1 carattere speciale. (gestito dal frontend)
 - **Campi opzionali**:
-  - Numero di telefono (regex internazionale).
-  - Partita IVA (regex nazionale).
+  - Numero di telefono (regex internazionale - gestito dal frontend).
+  - Partita IVA (regex nazionale - gestito dal frontend).
 
 ### **3. Creazione dell'Utente**
 1. Hash della password (`bcrypt`).
@@ -108,63 +108,184 @@ Content-Type: application/json
 @limiter.limit("3 per minute")
 def register():
     data = request.get_json()
-
-    # Validazione parametri obbligatori
-    required_fields = ['email', 'password', 'name', 'surname']
-    missing_fields = [field for field in required_fields if field not in data]
-    if missing_fields:
-        return jsonify({
-            "status": "error",
-            "code": 400,
-            "message": f"Missing fields: {', '.join(missing_fields)}"
-        }), 400
-
     email = data['email']
     password = data['password']
     name = data['name']
     surname = data['surname']
-    phone_number = data.get('phone_number')
-    vat_number = data.get('vat_number')
+    phone_number = data.get['phone_number']
+    vat_number = data.get['vat_number']
 
-    # Validazioni
-    if not validate_email(email):
-        return jsonify({"status": "error", "code": 400, "message": "Invalid email format"}), 400
-    if is_disposable_email(email):
-        return jsonify({"status": "error", "code": 400, "message": "Disposable emails are not allowed."}), 400
-    if not validate_password(password):
-        return jsonify({"status": "error", "code": 400, "message": "Password does not meet security criteria."}), 400
+    # Verifica se l'email è un'email usa e getta
+    disposable = is_disposable_email.check(email)
+    if disposable:
+        return jsonify_return_error("Error", 400, "Disposable emails are not allowed."), 400
+    
 
-    # Hash password e generazione User ID
-    password_hash = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt())
-    user_id = str(uuid.uuid4())
+    # Hash della password
+    password_hash = utils.hash_password(password)
 
-    # Creazione utente
+
+    # Creazione nuovo utente
     new_user = User(
-        user_id=user_id,
         email=email,
         password_hash=password_hash,
         name=name,
         surname=surname,
-        phone_number=phone_number,
-        vat_number=vat_number,
         is_verified=False
     )
+
+    # Aggiunta dei campi opzionali solo se non sono vuoti
+    if phone_number:
+        user_data['phone_number'] = phone_number
+    if vat_number:
+        user_data['vat_number'] = vat_number
+    
+
+    # Verifica se l'email è già registrata
+    existing_user = User.query.filter_by(email=email).first()
+    if existing_user:
+        return jsonify_return_error("Conflict", 409, "Email already registered"), 409
+
+    # Aggiungi l'utente al database
     try:
         db.session.add(new_user)
         db.session.commit()
-    except IntegrityError:
+    except IntegrityError as e:
         db.session.rollback()
-        return jsonify({"status": "error", "code": 409, "message": "Email already registered."}), 409
+        return jsonify_return_error("Error", 500, "Internal (Integrity) Server Error, please contact the admin"), 500
+    except Exception as e:
+        db.session.rollback()
+        return jsonify_return_error("Error", 500, "Internal (Databse) Server Error, please contact the admin"), 500
 
-    # Generazione token verifica
-    serializer = URLSafeTimedSerializer(current_app.config['SECRET_KEY'])
-    verification_token = serializer.dumps(email, salt=current_app.config['SECURITY_PASSWORD_SALT'])
+    try:
+        # Generazione token di verifica
+        token = utils.generate_verification_token(email)
+        verify_url = url_for('v1.verify_email', token=token, email=email, _external=True)
 
-    # Invio email verifica
-    verification_link = url_for('v1.verify_email', token=verification_token, _external=True)
-    send_verification_email(email, verification_link)
+        response = send_verification_email(email, verify_url)
+        if response.status_code == 404:
+            callback_refresh()
+            response = send_verification_email(email, verify_url)
+    except Exception as e:
+        return jsonify_return_error("Error", 500, "Internal (Verification Email) Server Error, please contact the admin"), 500
 
-    return jsonify({"status": "success", "code": 201, "message": "User registered. Please verify your email."}), 201
+
+    if response.status_code == 200:
+        return jsonify_return_success("success", 201, {"message": "User registered. Please verify your email."}), 201
+    else:
+        return jsonify_return_error("Error", 500, "Internal (Generic) Server Error, please contact the admin"), 500
+
+@v1.route('/verify/<token>', methods=['GET'])
+def verify_email(token):
+    email = request.args.get('email')
+    print(email)
+
+    try:
+        serializer = URLSafeTimedSerializer(current_app.config['SECRET_KEY'])
+        email = serializer.loads(token, salt=current_app.config['SECURITY_PASSWORD_SALT'], max_age=86400)
+    except SignatureExpired:
+        # Il token è scaduto
+        # Restituisci un JSON o reindirizza in base al tipo di richiesta
+        if request.accept_mimetypes['application/json']:
+            return jsonify_return_error("error", 400, "Expired token."), 400
+        else:
+            return redirect(url_for('v1.expired_token', email=email))
+    except BadSignature:
+        # Il token non è valido
+        if request.accept_mimetypes['application/json']:
+            return jsonify_return_error("error", 401, "Invalid token."), 401
+        else:
+            return redirect(url_for('v1.invalid_token', email=email))
+
+    # Verifica utente nel database
+    user = User.query.filter_by(email=email).first()
+    if user is None:
+        return redirect(url_for('v1.user_not_found'))
+    if user.is_verified:
+        # Restituisci un JSON o reindirizza in base al tipo di richiesta
+        if request.accept_mimetypes['application/json']:
+            return jsonify_return_success("success", 200, {"message": "Email confirmed successfully."}), 200
+        else:
+            return redirect(url_for('v1.login_page'))
+
+    user.is_verified = True
+    db.session.commit()
+
+    # Restituisci un JSON o reindirizza in base al tipo di richiesta
+    if request.accept_mimetypes['application/json']:
+        return jsonify_return_success("success", 200, {"message": "Email confirmed successfully."}), 200
+    else:
+        return redirect(url_for('v1.login_page'))
+
+@v1.route('/login', methods=['POST'])
+def login():
+    data = request.get_json()
+    email = data['email']
+    password = data['password']
+
+    # Cerca l'utente nel database
+    user = User.query.filter_by(email=email).first()
+    if user is None:
+        return jsonify_return_error("error", 401, "Incorrect email or password."), 401
+
+    if not user.is_verified:
+        return jsonify_return_error("error", 402, "Email not verified, yet"), 402
+
+    # Verifica la password utilizzando bcrypt
+    if not verify_password(user.password_hash, password):  # Confronto con la password hashata
+        return jsonify_return_error("error", 401, "Incorrect email or password."), 401
+
+    jwt_token = create_jwt_token(user)
+
+    # Se tutto va bene, logica per il login (es. creazione di un token JWT o gestione della sessione)
+    # Ritorna il token JWT insieme a email e username
+    data = {
+        "message": "Successfull login",
+        "jwt_token": jwt_token,
+        "email": user.email
+    }
+
+    response = jsonify_return_success("success", 200, data)
+    return response, 200
+
+
+@v1.route('/resend_verification', methods=['POST'])
+@limiter.limit("3 per hour")  # Limita a 3 richieste all'ora per utente
+def resend_verification():
+    """
+    Resends a verification email to a user.
+
+    Returns:
+        Response: A response with a message and a status code.
+    """
+    email = request.form.get('email')
+    print(email)
+
+    # Verifica che l'email esista nel database
+    user = User.query.filter_by(email=email).first()
+    if not user:
+        return jsonify({"message": "User not found"}), 404
+    if user.is_verified:
+        return redirect(url_for('v1.login_page'))
+
+    try:
+        # Generazione token di verifica
+        token = generate_verification_token(email)
+        verify_url = url_for('v1.verify_email', token=token, email=email, _external=True)
+    except Exception as e:
+        return jsonify({"error in verif token": str(e)}), 500
+
+    # Invia email di verifica
+    try:
+        response = send_token_verification_email(email, verify_url)
+        if response.status_code == 404:
+            callback_refresh()
+            response = send_token_verification_email(email, verify_url)
+
+    except Exception as e:
+        return jsonify({"error in email": str(e)}), 500
+
+    return jsonify({"message": "A new verification email has been sent."}), 200
 ```
 
 ---
