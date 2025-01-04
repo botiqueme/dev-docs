@@ -107,13 +107,15 @@ Content-Type: application/json
 @v1.route('/register', methods=['POST'])
 @limiter.limit("3 per minute")
 def register():
+    current_app.logger.info("Registering new user...")
+
     data = request.get_json()
     email = data['email']
     password = data['password']
     name = data['name']
     surname = data['surname']
-    phone_number = data.get['phone_number']
-    vat_number = data.get['vat_number']
+    phone_number = data.get('phone_number')
+    vat_number = data.get('vat_number')
 
     # Verifica se l'email è un'email usa e getta
     disposable = is_disposable_email.check(email)
@@ -136,10 +138,11 @@ def register():
 
     # Aggiunta dei campi opzionali solo se non sono vuoti
     if phone_number:
-        user_data['phone_number'] = phone_number
+        new_user.phone_number = phone_number
     if vat_number:
-        user_data['vat_number'] = vat_number
+        new_user.vat_number = vat_number
     
+    current_app.logger.info("Checking if email is already registered...")
 
     # Verifica se l'email è già registrata
     existing_user = User.query.filter_by(email=email).first()
@@ -160,13 +163,17 @@ def register():
     try:
         # Generazione token di verifica
         token = utils.generate_verification_token(email)
+        # logger.info(email)
         verify_url = url_for('v1.verify_email', token=token, email=email, _external=True)
+        # logger.info(verify_url)
 
-        response = send_verification_email(email, verify_url)
+        response = utils.send_verification_email(email, verify_url)
+        # logger.info(response)
         if response.status_code == 404:
             callback_refresh()
-            response = send_verification_email(email, verify_url)
+            response = utils.send_verification_email(email, verify_url)
     except Exception as e:
+        current_app.logger.info(e)
         return jsonify_return_error("Error", 500, "Internal (Verification Email) Server Error, please contact the admin"), 500
 
 
