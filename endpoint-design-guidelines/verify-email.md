@@ -58,98 +58,68 @@ Validare l’email di un utente tramite un token univoco generato al momento del
 ## Codice di Implementazione
 
 ```
-from flask import request, jsonify, current_app
-from itsdangerous import URLSafeTimedSerializer, SignatureExpired, BadSignature
-from app.models import User
-from app import db, blacklist
-from flask_limiter import Limiter
-from flask_limiter.util import get_remote_address
-import logging
-
-# Configurazione logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(name)
-
-# Configurazione rate limiter
-limiter = Limiter(key_func=get_remote_address)
-
-@v1.route('/verify_email', methods=['GET'])
+@v1.route('/verify_email/<token>', methods=['GET'])
 @limiter.limit("5 per minute", override_defaults=False, deduct_when=lambda resp: resp.status_code == 200)
 @limiter.limit("3 per minute", override_defaults=False, deduct_when=lambda resp: resp.status_code != 200)
-def verify_email():
-    token = request.args.get('token')
-
-    # Validazione token mancante
+def verify_email(token):
+    # Controllo presenza del token
     if not token:
-        logger.warning("Verification failed: Missing token.")
-        return jsonify({
-            "status": "error",
-            "code": 400,
-            "message": "Missing token."
-        }), 400
-
-    # Verifica se il token è nella blacklist
-    if token in blacklist:
-        logger.warning(f"Verification failed: Token {token} blacklisted.")
-        return jsonify({
-            "status": "error",
-            "code": 401,
-            "message": "Token invalidated."
-        }), 401
-
+        return jsonify({"Bad Request": "Missing token."}), 400
+    
+    # Controlla se il token è nella blacklist
+    if BlacklistToken.query.filter_by(token=token).first():
+        # Verifica il tipo di risposta preferito dal client
+        if request.accept_mimetypes.accept_json and not request.accept_mimetypes.accept_html:
+            return jsonify({"Unauthorized": "Blacklisted token."}), 401
+        else:
+            return redirect(url_for('v1.invalid_token'))
+    
     try:
-        # Decodifica del token
         serializer = URLSafeTimedSerializer(current_app.config['SECRET_KEY'])
         email = serializer.loads(
             token,
             salt=current_app.config['SECURITY_PASSWORD_SALT'],
-            max_age=86400  # Token valido per 24 ore
+            max_age=86400  # 24 ore
         )
     except SignatureExpired:
-        logger.warning("Verification failed: Token expired.")
-        return jsonify({
-            "status": "error",
-            "code": 401,
-            "message": "Invalid or expired token. Please request a new one."
-        }), 401
+        # Token scaduto
+        if request.accept_mimetypes.accept_json and not request.accept_mimetypes.accept_html:
+            return jsonify({"Unauthorized": "Expired token."}), 401
+        else:
+            return redirect(url_for('v1.expired_token', email=email))
     except BadSignature:
-        logger.warning("Verification failed: Invalid token signature.")
-        return jsonify({
-            "status": "error",
-            "code": 401,
-            "message": "Invalid or expired token."
-        }), 401
+        # Token non valido
+        if request.accept_mimetypes.accept_json and not request.accept_mimetypes.accept_html:
+            return jsonify({"Unauthorized": "Invalid token."}), 401
+        else:
+            return redirect(url_for('v1.invalid_token'))
 
-    # Recupero utente dal database
+    # Verifica utente nel database
     user = User.query.filter_by(email=email).first()
-
-    if not user:
-        logger.warning(f"Verification failed: User not found for email {email}.")
-        return jsonify({
-            "status": "error",
-            "code": 404,
-            "message": "User not found."
-        }), 404
-
-    # Controllo se l'utente è già verificato
+    if user is None:
+        if request.accept_mimetypes.accept_json and not request.accept_mimetypes.accept_html:
+            return jsonify({"Not Found": "User not found."}), 404
+        else:
+            return redirect(url_for('v1.user_not_found'))
     if user.is_verified:
-        logger.info(f"Verification skipped: User {email} already verified.")
-        return jsonify({
-            "status": "error",
-            "code": 409,
-            "message": "User is already verified."
-        }), 409
+        if request.accept_mimetypes.accept_json and not request.accept_mimetypes.accept_html:
+            return jsonify({"Conflict": "User is already verified."}), 409
+        else:
+            return redirect(url_for('v1.verified_token'))
 
-    # Aggiornamento stato utente
+    # Aggiorna stato di verifica
     user.is_verified = True
     db.session.commit()
 
-    logger.info(f"Verification successful: User {email} verified.")
-    return jsonify({
-        "status": "success",
-        "code": 200,
-        "message": "Email verified successfully."
-    }), 200
+    # Aggiungi il token alla blacklist
+    new_blacklist_entry = BlacklistToken(token=token)
+    db.session.add(new_blacklist_entry)
+    db.session.commit()
+
+    if request.accept_mimetypes.accept_json and not request.accept_mimetypes.accept_html:
+        return jsonify({"OK": "Email verified successfully."}), 200
+    else:
+        return redirect(url_for('v1.verified_token'))
 ```
 
 ## Prossimi Passi per l’Endpoint /verify_email
