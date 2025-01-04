@@ -49,7 +49,8 @@ Validare l’email di un utente tramite un token univoco generato al momento del
 | Causa                     | HTTP Status       | Messaggio                                  |
 |---------------------------|-------------------|--------------------------------------------|
 | Token mancante             | 400 Bad Request   | "Missing token."                           |
-| Token scaduto o non valido | 401 Unauthorized  | "Invalid or expired token."               |
+| Token non valido           | 401 Unauthorized  | "Invalid token."               |
+| Token scaduto              | 401 Unauthorized  | "Expired token."               |
 | Utente non trovato         | 404 Not Found     | "User not found."                         |
 | Utente già verificato      | 409 Conflict      | "User is already verified."               |
 | Rate limit superato        | 429 Too Many Requests | "Too many attempts. Try again later."    |
