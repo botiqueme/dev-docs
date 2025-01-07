@@ -175,13 +175,15 @@ def login():
         return utils.jsonify_return_error("error", 401, "Incorrect email or password."), 401
 
 
-    # Generazione del Token JWT
-    jwt_token = utils.create_jwt_token(user)
+    # Generazione dei Token JWT
+    access_token = utils.create_jwt_token(user, token_type="access")
+    refresh_token = utils.create_jwt_token(user, token_type="refresh")
 
     # Risposta al Frontend
     data = {
         "message": "Login successful",
-        "jwt_token": jwt_token,
+        "access_jwt_token": access_token,
+        "refresh_jwt_token": refresh_token,
         "user_id": user.id,
         "email": user.email
     }
