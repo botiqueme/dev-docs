@@ -58,7 +58,6 @@ Esempio di richiesta:
 |---------------------------|-------------------|---------------------------------------------|
 | Parametri mancanti         | 400 Bad Request  | "Both current and new passwords are required." |
 | Password attuale errata    | 400 Bad Request  | "Current password is incorrect."           |
-| Password non valida        | 400 Bad Request  | "New password does not meet security criteria." |
 | Token non valido           | 401 Unauthorized | "Invalid token."                            |
 | Utente non trovato         | 404 Not Found    | "User not found."                           |
 
