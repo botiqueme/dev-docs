@@ -22,7 +22,7 @@ Il corpo della richiesta deve essere in formato JSON. Campi aggiornabili:
 - **company** (stringa)
 - **vat_number** (stringa, formato validato)
 
-Nota: È importante validare ogni campo prima di aggiornarlo nel database.
+Nota: È importante validare ogni campo prima di aggiornarlo nel database (verifica fatta in frontend)
 
 ### 3. Aggiornamento
 - Aggiornare solo i campi presenti nella richiesta.
@@ -33,7 +33,7 @@ Nota: È importante validare ogni campo prima di aggiornarlo nel database.
 
 ## 3. Esempio di Richiesta
 
-Richiesta `PUT /update_user`
+Richiesta `PATCH /update_user`
 
 ```
 {
@@ -97,48 +97,79 @@ Richiesta `PUT /update_user`
   "message": "User not found."
 }
 ```
+### Errore: No Data Provided
+
+| HTTP Status | Messaggio                  |
+|-------------|----------------------------|
+| 400 Error | "No data provided."         |
+
+**Body:**
+```
+{
+  "status": "error",
+  "code": 400,
+  "message": "No Data Provided."
+}
+```
 
 ## 5. Codice Aggiornato
 
 ```
-@v1.route('/update_user', methods=['PUT'])
+@v1.route('/update_user', methods=['PATCH'])
+@jwt_required()
 def update_user():
-    # Autenticazione tramite token JWT
-    auth_header = request.headers.get('Authorization')
-    if not auth_header:
-        return jsonify_return_error("error", 401, "Authorization token required"), 401
-
+    """
+    Endpoint per aggiornare le informazioni dell'utente.
+    Richiede autenticazione tramite JWT.
+    """
     try:
-        token = auth_header.split(" ")[1]
-        payload = jwt.decode(token, current_app.config['SECRET_KEY'], algorithms=['HS256'])
-        user_id = payload['user_id']
-    except Exception:
-        return jsonify_return_error("error", 401, "Invalid token"), 401
+        # Ottieni l'ID dell'utente dal token JWT
+        user_id = get_jwt_identity()
 
-    # Recupero dell'utente
-    user = User.query.filter_by(user_id=user_id).first()
-    if not user:
-        return jsonify_return_error("error", 404, "User not found"), 404
+        # Recupera l'utente dal database
+        user = User.query.get(user_id)
+        if not user:
+            return utils.jsonify_return_error("error", 404, "User not found"), 404
+        
+        # Recupera i dati dal corpo della richiesta
+        data = request.get_json()
+        if not data:
+            return utils.jsonify_return_error("error", 400, "No data provided"), 400
+        
+        # Aggiorna i campi forniti nella richiesta
+        if 'name' in data:
+            user.name = data['name']
+        if 'surname' in data:
+            user.surname = data['surname']
+        if 'phone_number' in data:
+            user.phone_number = data['phone_number']
+        if 'company' in data:
+            user.company = data['company']
+        if 'vat_number' in data:
+            user.vat_number = data['vat_number']
+        
+        # Salva le modifiche nel database
+        try:
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+            return utils.jsonify_return_error("error", 500, "An error occurred while updating the user"), 500
 
-    # Recupero dati dal body della richiesta
-    data = request.get_json()
-    user.name = data.get('name', user.name)
-    user.surname = data.get('surname', user.surname)
-    user.phone_number = data.get('phone_number', user.phone_number)
-    user.company = data.get('company', user.company)
-    user.vat_number = data.get('vat_number', user.vat_number)
+        # Prepara i dati aggiornati per la risposta
+        updated_data = {
+            "name": user.name,
+            "surname": user.surname,
+            "phone_number": user.phone_number,
+            "company": user.company,
+            "vat_number": user.vat_number
+        }
 
-    # Salvataggio delle modifiche
-    db.session.commit()
+        # Restituisce una risposta di successo con i dati aggiornati
+        return utils.jsonify_return_success("success", 200, updated_data), 200
+    except Exception as e:
+        # Gestione di errori imprevisti
+        return utils.jsonify_return_error("error", 500, "An unexpected error occurred"), 500
 
-    # Risposta con i dati aggiornati
-    return jsonify_return_success("success", 200, {
-        "name": user.name,
-        "surname": user.surname,
-        "phone_number": user.phone_number,
-        "company": user.company,
-        "vat_number": user.vat_number
-    })
 ```
 
 ## 6. Validazioni da Implementare
