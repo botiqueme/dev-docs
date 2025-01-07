@@ -30,11 +30,11 @@ Esempio di richiesta:
 1. **Presenza dei campi**:
    - Controllare che `current_password` e `new_password` siano presenti.
 2. **Verifica password attuale**:
-   - Assicurarsi che la password attuale corrisponda a quella memorizzata.
+   - Assicurarsi che la password attuale corrisponda a quella memorizzata (hashing password).
 3. **Nuova password valida**:
-   - Controllare che la nuova password rispetti i criteri di sicurezza:
-     - Minimo 8 caratteri.
-     - Almeno 1 maiuscola, 1 numero e 1 carattere speciale.
+   - Controllare che la nuova password rispetti i criteri di sicurezza: 
+     - Minimo 8 caratteri.(verifica fatta in frontend)
+     - Almeno 1 maiuscola, 1 numero e 1 carattere speciale.(verifica fatta in frontend)
      - Diversa dalla password attuale.
 
 ### Aggiornamento
