@@ -90,70 +90,45 @@ Esempio di Risposta Successo:
 ## 5. Codice Completo
 
 ```
-from flask import request, jsonify, current_app, url_for
-from itsdangerous import URLSafeTimedSerializer
-from app.models import User
-from app.utils import send_password_reset_email
-from app import db
-import logging
-from flask_limiter import Limiter
-from flask_limiter.util import get_remote_address
-
-# Configurazione logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
-
-# Configurazione rate limiter
-limiter = Limiter(key_func=get_remote_address)
-
 @v1.route('/reset_password_request', methods=['POST'])
-@limiter.limit("3 per hour")
+@limiter.limit("3 per hour", key_func=lambda: request.remote_addr)
 def reset_password_request():
-    data = request.get_json()
-    email = data.get('email')
-
-    # Validazione email mancante
-    if not email:
-        logger.warning("Reset password request failed: Missing email.")
-        return jsonify({
-            "status": "error",
-            "code": 400,
-            "message": "Missing email."
-        }), 400
-
-    # Recupero utente
-    user = User.query.filter_by(email=email).first()
-    if not user:
-        # Risposta generica per evitare enumerazione utenti
-        logger.warning(f"Reset password request for non-existing email: {email}")
-        return jsonify({
-            "status": "success",
-            "code": 200,
-            "message": "If the email exists, a reset link has been sent."
-        }), 200
-
-    # Generazione token di reset
+    """
+    Endpoint per richiedere un link di reset della password.
+    """
     try:
-        serializer = URLSafeTimedSerializer(current_app.config['SECRET_KEY'])
-        token = serializer.dumps(email, salt=current_app.config['SECURITY_PASSWORD_SALT'])
-        reset_url = url_for('v1.reset_password', token=token, _external=True)
+        # Recupera i dati dal corpo della richiesta
+        data = request.get_json()
+        if not data or 'email' not in data:
+            return utils.jsonify_return_error("Bad Request", 400, "Missing email."), 400
 
-        # Invio email
-        send_password_reset_email(email, reset_url)
-        logger.info(f"Password reset email sent to {email}.")
+        email = data['email']
+
+        # Verifica se l'email è un'email usa e getta
+        disposable = is_disposable_email.check(email)
+        if disposable:
+            return utils.jsonify_return_error("Error", 400, "Disposable emails are not allowed."), 400
+
+        # Cerca l'utente nel database
+        user = User.query.filter_by(email=email).first()
+
+        # Protezione contro l'enumerazione degli utenti
+        if user:
+            # Genera un token di reset della password
+            token = utils.generate_verification_token(email)
+            # Costruisce l'URL di reset della password
+            verify_url = url_for('v1.verify_email', token=token, _external=True)
+
+            response = utils.send_verification_email(email, verify_url)
+            if response.status_code == 404:
+                callback_refresh()
+                response = utils.send_verification_email(email, verify_url)
+
     except Exception as e:
-        logger.error(f"Error during token generation or email sending: {e}")
-        return jsonify({
-            "status": "error",
-            "code": 500,
-            "message": "Error sending reset email."
-        }), 500
+        return utils.jsonify_return_error("Error", 500, "Internal Server Error, please contact the admin"), 500
 
-    return jsonify({
-        "status": "success",
-        "code": 200,
-        "message": "If the email exists, a reset link has been sent."
-    }), 200
+    if response.status_code == 200:
+        return utils.jsonify_return_success("success", 200, {"message": "If an account with that email exists, a password reset link has been sent."}), 200
 ```
 
 ---
