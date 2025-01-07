@@ -66,53 +66,51 @@ Esempio di richiesta:
 ## 5. Codice Aggiornato
 
 ```
-@v1.route('/update_password', methods=['PUT'])
-@limiter.limit("3 per minute")  # Rate limiting per prevenire abusi
+@v1.route('/update_password', methods=['PATCH'])
+@jwt_required()
 def update_password():
-    # Recupero del token JWT
-    auth_header = request.headers.get('Authorization')
-    if not auth_header:
-        return jsonify_return_error("error", 401, "Authorization token required."), 401
-
+    """
+    Endpoint per aggiornare la password dell'utente autenticato.
+    Richiede un token JWT valido.
+    """
     try:
-        token = auth_header.split(" ")[1]
-        payload = jwt.decode(token, current_app.config['SECRET_KEY'], algorithms=['HS256'])
-        user_id = payload['user_id']
-    except Exception:
-        return jsonify_return_error("error", 401, "Invalid token."), 401
+        # Ottieni l'ID dell'utente dal token JWT
+        user_id = get_jwt_identity()
 
-    # Recupero dell'utente
-    user = User.query.filter_by(user_id=user_id).first()
-    if not user:
-        return jsonify_return_error("error", 404, "User not found."), 404
+        # Recupera l'utente dal database
+        user = User.query.get(user_id)
+        if not user:
+            return utils.jsonify_return_error("error", 404, "User not found"), 404
 
-    # Recupero dati dal body della richiesta
-    data = request.get_json()
-    current_password = data.get('current_password')
-    new_password = data.get('new_password')
+        # Recupera i dati dal corpo della richiesta
+        data = request.get_json()
+        if not data:
+            return utils.jsonify_return_error("Bad Request", 400, "Both current and new passwords are required."), 400
 
-    if not current_password or not new_password:
-        return jsonify_return_error("error", 400, "Both current and new passwords are required."), 400
+        # Estrai le password dal payload
+        current_password = data.get('current_password')
+        new_password = data.get('new_password')
 
-    # Verifica password attuale
-    if not verify_password(user.password_hash, current_password):
-        return jsonify_return_error("error", 400, "Current password is incorrect."), 400
+        # Verifica che tutte le password siano fornite
+        if not all([current_password, new_password]):
+            return utils.jsonify_return_error("Bad Request", 400, "Both current and new passwords are required."), 400
+        
+        # Verifica la password utilizzando bcrypt
+        if not utils.verify_password(user.password_hash, current_password):  # Confronto con la password hashata
+            return utils.jsonify_return_error("Bad Request", 40, "Current password is incorrect."), 400
+        
+        # Aggiorna la password dell'utente
+        user.password_hash = utils.hash_password(new_password)
 
-    # Validazione della nuova password
-    if current_password == new_password:
-        return jsonify_return_error("error", 400, "New password must be different from the current password."), 400
-    if not validate_password(new_password):
-        return jsonify_return_error("error", 400, "New password does not meet security criteria."), 400
+        # Salva le modifiche nel database
+        db.session.commit()
 
-    # Aggiornamento della password
-    user.password_hash = hash_password(new_password)
-    db.session.commit()
+        # Restituisci una risposta di successo
+        return utils.jsonify_return_success("OK", 200, {"message": "Password updated successfully"}), 200
 
-    return jsonify({
-        "status": "success",
-        "code": 200,
-        "message": "Password updated successfully."
-    }), 200
+    except Exception as e:
+        # Gestione degli errori imprevisti
+        return utils.jsonify_return_error("error", 500, "Internal Server Error."), 500
 ```
 
 ## 6. Miglioramenti Futuri
