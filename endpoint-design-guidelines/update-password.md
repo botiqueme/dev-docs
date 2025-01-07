@@ -2,7 +2,7 @@
 
 ## 1. Dettagli
 - **URL**: `/update_password`
-- **Metodo**: `PUT`
+- **Metodo**: `PATCH`
 - **Autenticazione**: Richiede un token JWT per identificare e autorizzare l’utente.
 - **Scopo**: Consentire agli utenti di aggiornare la propria password in modo sicuro.
 
