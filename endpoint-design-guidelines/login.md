@@ -25,7 +25,7 @@ Esempio di richiesta:
 
 ## 3. Validazioni
 1. **Email**:
-   - Verificare che sia presente e in un formato valido (es. `user@example.com`).
+   - Verificare che sia presente e in un formato valido (es. `user@example.com`) (Gestita da frontend).
 2. **Password**:
    - Assicurarsi che sia presente.
 3. **Rate Limiting**:
