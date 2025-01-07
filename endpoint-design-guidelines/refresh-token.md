@@ -107,44 +107,30 @@ Authorization: Bearer <refresh_token>
 
 ```
 @v1.route('/refresh_token', methods=['POST'])
-def refresh_token():
+@jwt_required(refresh=True)
+def refresh():
     """
-    Endpoint per rigenerare un access token usando un refresh token.
+    Endpoint per rigenerare un access token utilizzando un refresh token valido.
     """
-    auth_header = request.headers.get('Authorization')
-    if not auth_header or not auth_header.startswith('Bearer '):
-        return utils.jsonify_return_error("error", 401, "Refresh token is missing"), 401
-
     try:
-        refresh_token = auth_header.split('Bearer')[1].strip()
+        # Ottieni l'identità dell'utente dal refresh token
+        current_user_id = get_jwt_identity()
 
-        # Decodifica e verifica il refresh token
-        payload = jwt.decode(refresh_token, current_app.config['SECRET_KEY'], algorithms=["HS256"])
-        if payload.get('type') != 'refresh':
-            return utils.jsonify_return_error("error", 401, "Invalid refresh token."), 401
-
-        # Verifica se l'utente esiste
-        user_id = payload.get('user_id')
-        user = User.query.get(user_id)
-        if not user:
-            return utils.jsonify_return_error("error", 404, "User not found"), 404
         # Genera un nuovo access token
-        new_access_token = utils.create_jwt_token(user, token_type="access")
+        new_access_token = utils.create_access_token(identity=current_user_id)
 
-        # Risposta al Frontend
+        # Prepara i dati della risposta
         data = {
-            "message": "Token refreshed successfully",
+            "message": "Access token refreshed successfully",
             "access_token": new_access_token
         }
 
+        # Restituisci la risposta formattata
         return utils.jsonify_return_success("success", 200, data), 200
 
-    except jwt.ExpiredSignatureError:
-        return utils.jsonify_return_error("error", 401, "Refresh token has expired"), 401
-    except jwt.InvalidTokenError:
-        return utils.jsonify_return_error("error", 401, "Invalid refresh token"), 401
-
-```
+    except Exception as e:
+        # Gestione errori generici
+        return jsonify_return_error("error", 500, "An unexpected error occurred"), 500
 
 ---
 
