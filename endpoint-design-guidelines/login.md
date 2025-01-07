@@ -149,45 +149,46 @@ def login():
 @v1.route('/login', methods=['POST'])
 @limiter.limit("5 per minute")
 def login():
+    """
+    Endpoint per effettuare il login dell'utente.
+    """
+
     data = request.get_json()
+    email = data.get('email')
+    password = data.get('password')
 
-    # Validazione dei parametri
-    if not data or 'email' not in data or 'password' not in data:
-        return jsonify_return_error("error", 400, "Missing email or password"), 400
+    # Validazione dell'input
+    if not email or not password:
+        return utils.jsonify_return_error("error", 400, "Email and password are required."), 400
 
-    email = data['email']
-    password = data['password']
 
-    # Recupero utente
+    # Cerca l'utente nel database
     user = User.query.filter_by(email=email).first()
-    if not user:
-        return jsonify_return_error("error", 401, "Incorrect email or password"), 401
-
-    # Verifica stato utente
+    if user is None:
+        return utils.jsonify_return_error("error", 401, "Incorrect email or password."), 401
     if not user.is_verified:
-        return jsonify_return_error("error", 403, "Email not verified"), 403
+        return utils.jsonify_return_error("error", 403, "Email not verified, yet"), 403
 
-    # Verifica password
-    if not verify_password(user.password_hash, password):
-        return jsonify_return_error("error", 401, "Incorrect email or password"), 401
 
-    # Generazione token JWT
-    jwt_token = jwt.encode(
-        {
-            "user_id": user.user_id,
-            "email": user.email,
-            "exp": datetime.utcnow() + timedelta(hours=1)
-        },
-        current_app.config['SECRET_KEY'],
-        algorithm='HS256'
-    )
+    # Verifica la password utilizzando bcrypt
+    if not utils.verify_password(user.password_hash, password):  # Confronto con la password hashata
+        return utils.jsonify_return_error("error", 401, "Incorrect email or password."), 401
 
-    # Risposta
-    return jsonify_return_success("success", 200, {
+
+    # Generazione del Token JWT
+    jwt_token = utils.create_jwt_token(user)
+
+    # Risposta al Frontend
+    data = {
         "message": "Login successful",
         "jwt_token": jwt_token,
-        "user_id": user.user_id
-    })
+        "user_id": user.id,
+        "email": user.email
+    }
+
+    response = utils.jsonify_return_success("success", 200, data)
+    return response, 200
+
 ```
 
 ---
