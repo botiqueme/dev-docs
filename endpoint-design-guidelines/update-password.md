@@ -60,6 +60,8 @@ Esempio di richiesta:
 | Password attuale errata    | 400 Bad Request  | "Current password is incorrect."           |
 | Token non valido           | 401 Unauthorized | "Invalid token."                            |
 | Utente non trovato         | 404 Not Found    | "User not found."                           |
+| Internal Server Error      | 500 Error    | "Internal Server Error."                           |
+
 
 ## 5. Codice Aggiornato
 
