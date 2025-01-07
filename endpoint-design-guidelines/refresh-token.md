@@ -91,6 +91,15 @@ Authorization: Bearer <refresh_token>
   "message": "User not found."
 }
 ```
+4. **Refresh Token Expired**:
+   - **HTTP Status**: `401 Error`
+   - **Body**:
+```
+{
+  "status": "error",
+  "code": 401,
+  "message": "Refresh token has expired."
+}
 
 ---
 
@@ -99,44 +108,42 @@ Authorization: Bearer <refresh_token>
 ```
 @v1.route('/refresh_token', methods=['POST'])
 def refresh_token():
-    # Recupero del refresh token dall'intestazione
-    refresh_token = request.headers.get('Authorization')
-    if not refresh_token:
-        return jsonify({"error": "Refresh token missing"}), 401
+    """
+    Endpoint per rigenerare un access token usando un refresh token.
+    """
+    auth_header = request.headers.get('Authorization')
+    if not auth_header or not auth_header.startswith('Bearer '):
+        return utils.jsonify_return_error("error", 401, "Refresh token is missing"), 401
 
     try:
-        # Decodifica del token
-        token = refresh_token.split(" ")[1]
-        payload = jwt.decode(token, current_app.config['SECRET_KEY'], algorithms=['HS256'])
-        if payload['type'] != 'refresh':
-            return jsonify({"error": "Invalid token type"}), 401
+        refresh_token = auth_header.split('Bearer')[1].strip()
 
-        # Recupero utente tramite User ID
-        user_id = payload['user_id']
-        user = User.query.filter_by(user_id=user_id).first()
+        # Decodifica e verifica il refresh token
+        payload = jwt.decode(refresh_token, current_app.config['SECRET_KEY'], algorithms=["HS256"])
+        if payload.get('type') != 'refresh':
+            return utils.jsonify_return_error("error", 401, "Invalid refresh token."), 401
+
+        # Verifica se l'utente esiste
+        user_id = payload.get('user_id')
+        user = User.query.get(user_id)
         if not user:
-            return jsonify({"error": "User not found"}), 404
+            return utils.jsonify_return_error("error", 404, "User not found"), 404
+        # Genera un nuovo access token
+        new_access_token = utils.create_jwt_token(user, token_type="access")
 
-        # Generazione di un nuovo access token
-        new_access_token = jwt.encode({
-            "user_id": user.user_id,
-            "email": user.email,
-            "exp": datetime.utcnow() + timedelta(minutes=15),
-            "type": "access"
-        }, current_app.config['SECRET_KEY'], algorithm='HS256')
+        # Risposta al Frontend
+        data = {
+            "message": "Token refreshed successfully",
+            "access_token": new_access_token
+        }
 
-        return jsonify({
-            "status": "success",
-            "code": 200,
-            "data": {
-                "access_token": new_access_token
-            }
-        }), 200
+        return utils.jsonify_return_success("success", 200, data), 200
 
     except jwt.ExpiredSignatureError:
-        return jsonify({"error": "Refresh token expired"}), 401
-    except Exception:
-        return jsonify({"error": "Invalid token"}), 401
+        return utils.jsonify_return_error("error", 401, "Refresh token has expired"), 401
+    except jwt.InvalidTokenError:
+        return utils.jsonify_return_error("error", 401, "Invalid refresh token"), 401
+
 ```
 
 ---
