@@ -38,7 +38,6 @@ Esempio di richiesta:
 ### **Fasi Chiave**
 1. **Validazione dell'Input**:
    - Controllare che l'email sia presente nella richiesta.
-   - Verificare che il formato dell'email sia valido (regex).
 
 2. **Recupero Utente**:
    - Cercare nel database l'utente associato all'email.
@@ -76,6 +75,7 @@ Esempio di richiesta:
 | **Utente Non Trovato**      | `404 Not Found`   | "User not found."                           |
 | **Utente Già Verificato**   | `409 Conflict`    | "User is already verified."                 |
 | **Rate Limit Superato**     | `429 Too Many Requests` | "Too many requests. Please try again later."|
+| **Internal Error**          | `500 Internal Error` | "Internal (Re-send verification) Server Error, please contact the admin"|
 
 Esempio di Risposta Successo:
 ```
@@ -91,78 +91,48 @@ Esempio di Risposta Successo:
 ## 5. Codice Completo
 
 ```
-from flask import request, jsonify, current_app, url_for
-from itsdangerous import URLSafeTimedSerializer
-from app.models import User
-from app.utils import send_verification_email
-from app import db
-import logging
-from flask_limiter import Limiter
-from flask_limiter.util import get_remote_address
-
-# Configurazione logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
-
-# Configurazione rate limiter
-limiter = Limiter(key_func=get_remote_address)
-
 @v1.route('/resend_verification', methods=['POST'])
-@limiter.limit("3 per hour")
+@limiter.limit("3 per hour")  # Limita a 3 richieste all'ora per utente
 def resend_verification():
-    data = request.get_json()
-    email = data.get('email')
+    """
+    Resends a verification email to a user.
 
-    # Validazione email mancante
+    Returns:
+        Response: A response with a message and a status code.
+    """
+    # Validazione dell'input
+    email = request.form.get('email')
     if not email:
-        logger.warning("Resend verification failed: Missing email.")
-        return jsonify({
-            "status": "error",
-            "code": 400,
-            "message": "Missing email."
-        }), 400
+        return jsonify({"Bad Request": "Missing email."}), 400
 
-    # Recupero utente
+    # Verifica che l'email esista nel database
     user = User.query.filter_by(email=email).first()
     if not user:
-        logger.warning(f"Resend verification failed: User with email {email} not found.")
-        return jsonify({
-            "status": "error",
-            "code": 404,
-            "message": "User not found."
-        }), 404
-
-    # Verifica stato utente
+        return jsonify({"Not Found": "User not found"}), 404
+    
     if user.is_verified:
-        logger.info(f"Resend verification skipped: User {email} is already verified.")
-        return jsonify({
-            "status": "error",
-            "code": 409,
-            "message": "User is already verified."
-        }), 409
+        if request.accept_mimetypes.accept_json and not request.accept_mimetypes.accept_html:
+            return jsonify({"Conflict": "User is already verified."}), 409
+        else:
+            return redirect(url_for('v1.verified_token'))
 
-    # Generazione token di verifica
     try:
-        serializer = URLSafeTimedSerializer(current_app.config['SECRET_KEY'])
-        token = serializer.dumps(email, salt=current_app.config['SECURITY_PASSWORD_SALT'])
-        verify_url = url_for('v1.verify_email', token=token, _external=True)
+        # Generazione token di verifica
+        token = utils.generate_verification_token(email)
+        # logger.info(email)
+        verify_url = url_for('v1.verify_email', token=token, email=email, _external=True)
+        # logger.info(verify_url)
 
-        # Invio email
-        send_verification_email(email, verify_url)
-        logger.info(f"Verification email resent to {email}.")
+        response = utils.send_verification_email(email, verify_url)
+        # logger.info(response)
+        if response.status_code == 404:
+            callback_refresh()
+            response = utils.send_verification_email(email, verify_url)
     except Exception as e:
-        logger.error(f"Error during token generation or email sending: {e}")
-        return jsonify({
-            "status": "error",
-            "code": 500,
-            "message": "Error resending verification email."
-        }), 500
+        current_app.logger.info(e)
+        return jsonify_return_error("Error", 500, "Internal (Verification Email) Server Error, please contact the admin"), 500
 
-    return jsonify({
-        "status": "success",
-        "code": 200,
-        "message": "Verification email resent."
-    }), 200
+    return jsonify({"OK": "Verification email resent."}), 200
 ```
 
 ---
