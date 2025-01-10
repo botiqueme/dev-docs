@@ -1,48 +1,48 @@
 # Endpoint: `/refresh_token`
 
-## 1. Dettagli
+## 1. Details
 - **URL**: `/refresh_token`
-- **Metodo**: `POST`
-- **Autenticazione**: Necessario il refresh token.
-- **Scopo**: Fornire un nuovo access token quando quello precedente è scaduto.
+- **Method**: `POST`
+- **Authentication**: Requires the refresh token.
+- **Purpose**: Provide a new access token when the previous one has expired.
 
 ---
 
-## 2. Comportamento
+## 2. Behavior
 
-### **1. Ricezione del Refresh Token**
-- Recuperare il refresh token dall’intestazione `Authorization` o da un cookie HTTP-only.
+### **1. Receiving the Refresh Token**
+- Retrieve the refresh token from the `Authorization` header or an HTTP-only cookie.
+- 
+### **2. Validating the Refresh Token**
+- Decode the refresh token using the server's secret key.
+- Verify:
+  - Token validity (not expired).
+  - Token type (`refresh`).
+  - Associated user exists.
+- Return an error if the token is invalid.
 
-### **2. Validazione del Refresh Token**
-- Decodificare il refresh token utilizzando la chiave segreta del server.
-- Verificare:
-  - Validità del token (non scaduto).
-  - Tipo di token (`refresh`).
-  - Utente associato esistente.
-- Restituire errore se il token non è valido.
+### **3. Generating a New Access Token**
+- Create a new access token with a short expiration time.
 
-### **3. Generazione di un Nuovo Access Token**
-- Creare un nuovo access token con scadenza breve.
-
-### **4. Risposta al Frontend**
-- Restituire il nuovo access token.
+### **4. Responding to the Frontend**
+- Return the new access token.
 
 ---
 
-## 3. Parametri Accettati
-- Nessun parametro nel corpo della richiesta.
-- Richiede il refresh token nell’intestazione `Authorization`.
+## 3. Accepted Parameters
+- No parameters in the request body.
+- Requires the refresh token in the `Authorization` header.
 
-Esempio di intestazione:
+Example header:
 ```
 Authorization: Bearer <refresh_token>
 ```
 
 ---
 
-## 4. Risposte dell'Endpoint
+## 4. Endpoint Responses
 
-### Successo
+### Success
 - **HTTP Status**: `200 OK`
 - **Body**:
 ```
@@ -57,9 +57,9 @@ Authorization: Bearer <refresh_token>
 
 ---
 
-### Errori
+### Errors
 
-1. **Refresh Token Mancante**:
+1. **Missing Refresh Token:**:
    - **HTTP Status**: `401 Unauthorized`
    - **Body**:
 ```
@@ -70,7 +70,7 @@ Authorization: Bearer <refresh_token>
 }
 ```
 
-2. **Refresh Token Non Valido**:
+2. **Invalid Refresh Token**:
    - **HTTP Status**: `401 Unauthorized`
    - **Body**:
 ```
@@ -81,7 +81,7 @@ Authorization: Bearer <refresh_token>
 }
 ```
 
-3. **Utente Non Trovato**:
+3. **User Not Found**:
    - **HTTP Status**: `404 Not Found`
    - **Body**:
 ```
@@ -103,7 +103,7 @@ Authorization: Bearer <refresh_token>
 
 ---
 
-## 5. Codice Aggiornato
+## 5. Code
 
 ```
 @v1.route('/refresh_token', methods=['POST'])
@@ -134,33 +134,33 @@ def refresh():
 
 ---
 
-## 6. Validazioni da Implementare
+## 6. Validations to Implement
 
-1. **Token JWT**:
-   - Verificare che il token sia valido e non scaduto.
-   - Controllare che il tipo sia `refresh`.
+1. **JWT Token**:
+   - Ensure the token is valid and not expired.
+   - Check that the type is `refresh`.
 
 2. **Blacklist**:
-   - Implementare una blacklist per invalidare i refresh token in caso di logout.
+   - Implement a blacklist to invalidate refresh tokens upon logout.
 
-3. **Rotazione del Refresh Token (miglioria opzionale)**:
-   - Generare un nuovo refresh token quando quello attuale viene utilizzato.
+3. **Refresh Token Rotation (optional improvement)**:
+   - Generate a new refresh token when the current one is used.
 
-4. **Sicurezza Avanzata (miglioria opzionale)**:
-   - Includere `jti` (unique identifier) per tracciare i token.
+4. **Advanced Security (optional improvement)**:
+   - Include `jti` (unique identifier) to track tokens.
 
 ---
 
-## 7. Prossimi Passi
+## 7. Next Steps
 
-1. **Implementare l'endpoint** seguendo le specifiche.
-2. **Testare**:
-   - Richieste valide con un refresh token funzionante.
-   - Richieste con token scaduto o non valido.
-   - Comportamento in caso di utente non trovato.
-3. **Integrare la blacklist per il refresh token**.
-4. **Aggiornare la documentazione API** per includere dettagli su questo endpoint.
-5. **Integrare la rotazione del token (opzionale)** per aumentare la sicurezza.
+1. **Implement the endpoint** following the specifications.
+2. **Test**:
+   - Valid requests with a working refresh token.
+   - Requests with an expired or invalid token.
+   - Behavior when the user is not found.
+3. **Integrate the refresh token blacklist**.
+4. **Update API documentation** to include details about this endpoint.
+5. **Integrate token rotation (optional)** to enhance security.
 
 ---
 
