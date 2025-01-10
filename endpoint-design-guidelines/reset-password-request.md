@@ -1,30 +1,30 @@
 # Endpoint: `/reset_password_request`
 
-## Scopo
-Questo endpoint consente agli utenti di richiedere un link per reimpostare la password. È stato migliorato per integrare sicurezza avanzata, scalabilità e prevenzione degli abusi.
+## Purpose
+This endpoint allows users to request a password reset link. It has been enhanced to include advanced security, scalability, and abuse prevention features.
 
 ---
 
-## 1. Dettagli Tecnici
+## 1. Technical Details
 
-### **Metodo**
+### **Method**
 `POST`
 
 ### **URL**
 `/reset_password_request`
 
-### **Autenticazione**
-Nessuna (pubblico).
+### **Authentication**
+None (public).
 
 ---
 
-## 2. Parametri della Richiesta
+## 2. Request Parameters
 
-| **Parametro** | **Tipo**  | **Obbligatorio** | **Descrizione**                             |
-|---------------|-----------|------------------|---------------------------------------------|
-| `email`       | Stringa   | Sì               | L'indirizzo email registrato dell'utente.   |
+| **Parameter** | **Type**  | **Required** | **Description**                             |
+|---------------|-----------|--------------|---------------------------------------------|
+| `email`       | String    | Yes          | The registered email address of the user.   |
 
-Esempio di richiesta:
+Example request:
 ```
 {
   "email": "user@example.com"
@@ -33,50 +33,50 @@ Esempio di richiesta:
 
 ---
 
-## 3. Miglioramenti Implementati
+## 3. Implemented Improvements
 
-### 1. Protezione contro Enumerazione degli Utenti
-- Risposta generica in caso di utente non trovato per evitare che attori malintenzionati possano verificare quali email sono registrate.
+### 1. Protection Against User Enumeration
+- Generic response when the user is not found to prevent malicious actors from verifying which emails are registered.
 
-### 2. Validità del Token
-- I token hanno una durata limitata a 15 minuti.
-- Il payload include:
-  - **`email`**: Identificativo univoco dell'utente.
-  - **`iat`**: Data e ora di creazione.
-  - **`jti`**: Identificativo univoco del token per prevenire riutilizzi.
+### 2. Token Validity
+- Tokens are valid for 15 minutes.
+- Payload includes:
+  - **`email`**: Unique user identifier.
+  - **`iat`**: Token creation date and time.
+  - **`jti`**: Unique token identifier to prevent reuse.
 
-### 3. Rate Limiting Avanzato
-- Limite configurato:
-  - 3 richieste per IP/email all'ora.
-  - Limite globale opzionale: massimo 50 richieste al minuto per garantire scalabilità.
+### 3. Advanced Rate Limiting
+- Configured limits:
+  - 3 requests per IP/email per hour.
+  - Optional global limit: Maximum of 50 requests per minute to ensure scalability.
 
-### 4. Logging Dettagliato
-- Ogni richiesta viene registrata con:
+### 4. Detailed Logging
+- Each request is logged with:
   - **Email**.
-  - **Indirizzo IP**.
-  - **Risultato** (successo/fallimento).
+  - **IP address**.
+  - **Result** (success/failure).
   - **Timestamp**.
 
-### 5. Rotazione del Token (miglioria opzionale)
-- Invalida automaticamente i token generati in precedenza per la stessa email quando viene richiesto un nuovo token.
+### 5. Token Rotation (Optional Improvement)
+- Automatically invalidates previously generated tokens for the same email when a new token is requested.
 
-### 6. Protezione tramite CAPTCHA (miglioria opzionale)
-- Aggiunto un'integrazione con reCAPTCHA per evitare attacchi automatizzati.
+### 6. CAPTCHA Protection (Optional Improvement)
+- Integrated reCAPTCHA to prevent automated attacks.
 
-### 7. Protezione CSRF (miglioria opzionale)
-- Richiesta di un token CSRF per garantire che le richieste provengano da fonti legittime.
+### 7. CSRF Protection (Optional Improvement)
+- Requires a CSRF token to ensure requests come from legitimate sources.
 
 ---
 
-## 4. Risposte dell'Endpoint
+## 4. Endpoint Responses
 
-| **Scenario**               | **HTTP Status**   | **Messaggio**                                |
-|----------------------------|-------------------|---------------------------------------------|
-| **Successo**               | `200 OK`         | "If the email exists, a reset link has been sent." |
-| **Email Mancante**          | `400 Bad Request` | "Missing email."                            |
-| **Rate Limit Superato**     | `429 Too Many Requests` | "Too many requests. Please try again later."|
+| **Scenario**               | **HTTP Status**     | **Message**                                 |
+|----------------------------|---------------------|---------------------------------------------|
+| **Success**                | `200 OK`           | "If the email exists, a reset link has been sent." |
+| **Missing Email**          | `400 Bad Request`  | "Missing email."                            |
+| **Rate Limit Exceeded**    | `429 Too Many Requests` | "Too many requests. Please try again later." |
 
-Esempio di Risposta Successo:
+Example Success Response:
 ```
 {
   "status": "success",
@@ -133,29 +133,29 @@ def reset_password_request():
 
 ---
 
-## 6. Prossimi Passi
+## 6. Next Steps
 
-1. **Implementazione del Rate Limit Globale** (miglioria opzionale):
-   - Configurare limiti globali per prevenire attacchi su larga scala.
+1. **Implement Global Rate Limit** (optional improvement):
+   - Configure global limits to prevent large-scale attacks.
 
-2. **Integrazione CAPTCHA** (miglioria opzionale):
-   - Aggiungere CAPTCHA per richieste automatizzate sospette.
+2. **CAPTCHA Integration** (optional improvement):
+   - Add CAPTCHA for suspicious automated requests.
 
-3. **Implementazione di `/reset_password`**:
-   - Creare un endpoint per consumare il token e reimpostare la password.
+3. **Implementation of `/reset_password`**:
+   - Create an endpoint to consume the token and reset the password.
 
-4. **Test Completi**:
-   - Validare scenari:
-     - Input non valido.
-     - Utente non trovato.
-     - Rate limiting funzionante.
-     - Corretto invio dell'email.
+4. **Comprehensive Testing**:
+   - Validate scenarios:
+     - Invalid input.
+     - User not found.
+     - Working rate limiting.
+     - Successful email sending.
 
-5. **Monitoraggio Avanzato**:
-   - Integrare strumenti come Grafana per visualizzare metriche:
-     - Numero di richieste.
-     - Tentativi falliti.
-     - Risultati delle richieste.
+5. **Advanced Monitoring**:
+   - Integrate tools like Grafana to visualize metrics:
+     - Number of requests.
+     - Failed attempts.
+     - Request outcomes.
 
 ---
 
