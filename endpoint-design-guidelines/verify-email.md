@@ -1,59 +1,64 @@
-# Documentazione Endpoint: /verify_email
+# Endpoint Documentation: `/verify_email`
 
-## Scopo
-Validare l’email di un utente tramite un token univoco generato al momento della registrazione.
+## Purpose
+Validate a user's email through a unique token generated during registration.
 
-## Specifiche Tecniche
+## Technical Specifications
 
-### Metodo
+### Method
 - **GET**
 
 ### URL
 - `/verify_email`
+- 
+### Authentication
+- None (public).
 
-### Autenticazione
-- Nessuna (pubblico).
+### Parameters
 
-### Parametri
+| Parameter | Type   | Required | Description                              |
+|-----------|--------|----------|------------------------------------------|
+| token     | String | Yes      | Unique token to verify the email address.|
 
-| Parametro | Tipo    | Obbligatorio | Descrizione                         |
-|-----------|---------|--------------|-------------------------------------|
-| token     | Stringa | Sì           | Token univoco per verificare l’indirizzo email. |
+---
 
-## Logica dell’Endpoint
-1. **Validazione del Token**:
-   - Controlla se il token è presente nella richiesta.
-   - Verifica che il token non sia nella blacklist.
-   - Decodifica il token e controlla la sua validità (non scaduto o corrotto).
-2. **Recupero dell’Utente**:
-   - Utilizza l’email decodificata dal token per cercare l’utente nel database.
-   - Restituisce un errore se l’utente non è trovato.
-3. **Verifica dello Stato dell’Utente**:
-   - Controlla se l’utente è già verificato.
-   - Se sì, restituisce un errore indicando che l’utente è già verificato.
-4. **Aggiornamento dello Stato**:
-   - Aggiorna il campo `is_verified` dell’utente a `True`.
+## Endpoint Logic
+1. **Token Validation**:
+   - Check if the token is present in the request.
+   - Verify the token is not blacklisted.
+   - Decode the token and ensure it is valid (not expired or corrupted).
+2. **User Retrieval**:
+   - Use the email decoded from the token to find the user in the database.
+   - Return an error if the user is not found.
+3. **User Status Verification**:
+   - Check if the user is already verified.
+   - If yes, return an error indicating the user is already verified.
+4. **Status Update**:
+   - Update the user's `is_verified` field to `True`.
 5. **Logging**:
-   - Registra i tentativi di verifica completati o falliti per monitoraggio.
+   - Log successful and failed verification attempts for monitoring.
 
-## Risposte
+## Responses
 
-### Successo
+### Success
 
-| HTTP Status | Messaggio                        |
-|-------------|----------------------------------|
-| 200 OK      | "Email verified successfully."    |
+| HTTP Status | Message                        |
+|-------------|--------------------------------|
+| 200 OK      | "Email verified successfully." |
 
-### Errori
 
-| Causa                     | HTTP Status       | Messaggio                                  |
-|---------------------------|-------------------|--------------------------------------------|
-| Token mancante             | 400 Bad Request   | "Missing token."                           |
-| Token non valido           | 401 Unauthorized  | "Invalid token."               |
-| Token scaduto              | 401 Unauthorized  | "Expired token."               |
-| Utente non trovato         | 404 Not Found     | "User not found."                         |
-| Utente già verificato      | 409 Conflict      | "User is already verified."               |
-| Rate limit superato        | 429 Too Many Requests | "Too many attempts. Try again later."    |
+### Errors
+
+| Cause                  | HTTP Status       | Message                                     |
+|------------------------|-------------------|---------------------------------------------|
+| Missing Token          | 400 Bad Request  | "Missing token."                            |
+| Invalid Token          | 401 Unauthorized | "Invalid token."                            |
+| Expired Token          | 401 Unauthorized | "Expired token."                            |
+| User Not Found         | 404 Not Found    | "User not found."                           |
+| User Already Verified  | 409 Conflict     | "User is already verified."                 |
+| Rate Limit Exceeded    | 429 Too Many Requests | "Too many attempts. Try again later."    |
+
+---
 
 ## Codice di Implementazione
 
@@ -122,63 +127,159 @@ def verify_email(token):
         return redirect(url_for('v1.verified_token'))
 ```
 
-## Prossimi Passi per l’Endpoint /verify_email
+## Next Steps for the `/verify_email` Endpoint
 
-### 1. Monitoraggio Completo (miglioria opzionale)
+### 1. Comprehensive Monitoring (optional improvement)
 
-**Obiettivo**  
-Integrare strumenti di monitoraggio come Prometheus o Grafana per raccogliere e analizzare metriche dettagliate sulle verifiche email.
+**Objective**  
+Integrate tools like Prometheus or Grafana to collect and analyze detailed metrics on email verifications.
 
-**Azioni Necessarie**  
-- **Configurare Prometheus Flask Exporter**:
-    - Raccogliere metriche come:
-        - Numero di verifiche completate con successo.
-        - Tentativi falliti (es. token non valido, token scaduto).
-        - Frequenza di token invalidati.
-    - **Esempio di codice per esportare metriche**:
-    ```
-    from prometheus_flask_exporter import PrometheusMetrics
-    metrics = PrometheusMetrics(app)
-    metrics.info('app_info', 'Application Info', version='1.0.0')
-    ```
-- **Integrare Grafana**:
-    - Creare dashboard per visualizzare le metriche raccolte da Prometheus.
-    - Aggiungere grafici per monitorare trend di verifiche email.
+**Necessary Actions**  
+- **Configure Prometheus Flask Exporter**:
+    - Collect metrics such as:
+        - Number of successful verifications.
+        - Failed attempts (e.g., invalid or expired tokens).
+        - Frequency of invalidated tokens.
+- **Integrate Grafana**:
+    - Create dashboards to visualize the metrics collected from Prometheus.
+    - Add charts to monitor email verification trends.
 
-### 2. Pagina Frontend (miglioria opzionale)
+### 2. Frontend Page (optional improvement)
 
-**Obiettivo**  
-Migliorare l’esperienza utente fornendo una pagina dedicata per il feedback visivo in base allo stato della verifica.
+**Objective**  
+Enhance user experience by providing a dedicated page with visual feedback based on the verification status.
 
-**Azioni Necessarie**  
-- Creare una pagina HTML con i seguenti stati:
-    - **Successo**: "La tua email è stata verificata con successo."
-    - **Token Scaduto**: "Il link è scaduto. Richiedi un nuovo token."
-        - Pulsante: "Richiedi Nuovo Token" (collegato a `/resend_verification`).
-    - **Token Non Valido**: "Errore durante la verifica. Contatta l’assistenza."
-- **Aggiungere il supporto per il rendering HTML**:
-    ```
-    if request.accept_mimetypes['text/html']:
-        return render_template('success.html')
-    else:
-        return jsonify({"status": "success", "message": "Email verified successfully."}), 200
-    ```
+**Necessary Actions**  
+- Create an HTML page for the following states:
+    - **Success**: "Your email has been successfully verified."
+    - **Expired Token**: "The link has expired. Request a new token."
+        - Button: "Request New Token" (linked to `/resend_verification`).
+    - **Invalid Token**: "Error during verification. Please contact support."
 
-### 3. Test Automatici (miglioria opzionale)
+---
+### 3. Automated Testing (optional improvement)
 
-**Obiettivo**  
-Garantire la qualità e il corretto funzionamento dell’endpoint in tutti i casi d’uso.
 
-**Azioni Necessarie**  
-- Creare test unitari e di integrazione per coprire:
-    - Verifiche con Token Validi:
-        - Testare che un token valido verifichi correttamente l’utente.
-    - Verifiche con Token Invalidi:
-        - Testare token scaduti o con firma non valida.
+markdown
+Copia codice
+# Endpoint Documentation: `/verify_email`
+
+---
+
+## Purpose
+Validate a user's email through a unique token generated during registration.
+
+---
+
+## Technical Specifications
+
+### Method
+- **GET**
+
+### URL
+- `/verify_email`
+
+### Authentication
+- None (public).
+
+### Parameters
+
+| Parameter | Type   | Required | Description                              |
+|-----------|--------|----------|------------------------------------------|
+| token     | String | Yes      | Unique token to verify the email address.|
+
+---
+
+## Endpoint Logic
+1. **Token Validation**:
+   - Check if the token is present in the request.
+   - Verify the token is not blacklisted.
+   - Decode the token and ensure it is valid (not expired or corrupted).
+2. **User Retrieval**:
+   - Use the email decoded from the token to find the user in the database.
+   - Return an error if the user is not found.
+3. **User Status Verification**:
+   - Check if the user is already verified.
+   - If yes, return an error indicating the user is already verified.
+4. **Status Update**:
+   - Update the user's `is_verified` field to `True`.
+5. **Logging**:
+   - Log successful and failed verification attempts for monitoring.
+
+---
+
+## Responses
+
+### Success
+
+| HTTP Status | Message                        |
+|-------------|--------------------------------|
+| 200 OK      | "Email verified successfully." |
+
+---
+
+### Errors
+
+| Cause                  | HTTP Status       | Message                                     |
+|------------------------|-------------------|---------------------------------------------|
+| Missing Token          | 400 Bad Request  | "Missing token."                            |
+| Invalid Token          | 401 Unauthorized | "Invalid token."                            |
+| Expired Token          | 401 Unauthorized | "Expired token."                            |
+| User Not Found         | 404 Not Found    | "User not found."                           |
+| User Already Verified  | 409 Conflict     | "User is already verified."                 |
+| Rate Limit Exceeded    | 429 Too Many Requests | "Too many attempts. Try again later."    |
+
+---
+
+## Next Steps for the `/verify_email` Endpoint
+
+### 1. Comprehensive Monitoring (optional improvement)
+
+**Objective**  
+Integrate tools like Prometheus or Grafana to collect and analyze detailed metrics on email verifications.
+
+**Necessary Actions**  
+- **Configure Prometheus Flask Exporter**:
+    - Collect metrics such as:
+        - Number of successful verifications.
+        - Failed attempts (e.g., invalid or expired tokens).
+        - Frequency of invalidated tokens.
+- **Integrate Grafana**:
+    - Create dashboards to visualize the metrics collected from Prometheus.
+    - Add charts to monitor email verification trends.
+
+---
+
+### 2. Frontend Page (optional improvement)
+
+**Objective**  
+Enhance user experience by providing a dedicated page with visual feedback based on the verification status.
+
+**Necessary Actions**  
+- Create an HTML page for the following states:
+    - **Success**: "Your email has been successfully verified."
+    - **Expired Token**: "The link has expired. Request a new token."
+        - Button: "Request New Token" (linked to `/resend_verification`).
+    - **Invalid Token**: "Error during verification. Please contact support."
+
+---
+
+### 3. Automated Testing (optional improvement)
+
+**Objective**  
+Ensure the quality and correct functioning of the endpoint in all use cases.
+
+**Necessary Actions**  
+- Create unit and integration tests to cover:
+    - Valid Tokens:
+        - Test that a valid token successfully verifies the user.
+    - Invalid Tokens:
+        - Test for expired or invalid signatures.
     - Blacklist:
-        - Testare che i token nella blacklist vengano respinti.
+        - Ensure blacklisted tokens are rejected.
     - Rate Limiting:
-        - Verificare che i limiti siano applicati correttamente (5 richieste al minuto per token validi, 3 per token non validi).
+        - Validate correct application of rate limits (e.g., 5 requests per minute for valid tokens, 3 for invalid tokens).
+
 - **Esempio di test**:
     ```
     def test_verify_email_success(client):
@@ -192,20 +293,22 @@ Garantire la qualità e il corretto funzionamento dell’endpoint in tutti i cas
         assert response.json['message'] == "Token invalidated."
     ```
 
-### 4. Ottimizzazione per Scalabilità (miglioria opzionale)
+### 4. Scalability Optimization (optional improvement)
 
-**Obiettivo**  
-Assicurare che il sistema rimanga performante in ambienti con molte richieste simultanee.
+**Objective**  
+Ensure the system remains performant in environments with high concurrent requests.
 
-**Azioni Necessarie**  
-- **Distribuzione della Blacklist**:
-    - Usare un sistema distribuito come Redis per sincronizzare la blacklist tra più istanze backend.
-- **Verifica dei Limiti di Carico**:
-    - Eseguire test di carico con strumenti come Apache JMeter o k6.
-    - Monitorare l’uso delle risorse durante test intensivi.
+**Necessary Actions**  
+- **Distributed Blacklist**:
+    - Use a distributed system like Redis to synchronize the blacklist across multiple backend instances.
+- **Load Testing**:
+    - Perform load testing with tools like Apache JMeter or k6.
+    - Monitor resource usage during high-intensity testing.
 
-## Priorità
-1. **Pagina Frontend**: Migliora immediatamente l’esperienza utente.
-2. **Test Automatici**: Garantisce qualità e stabilità del sistema.
-3. **Monitoraggio Completo**: Permette un’analisi continua delle metriche.
-4. **Ottimizzazione per Scalabilità**: Essenziale per ambienti con traffico elevato.
+
+## Priorities
+1. **Frontend Page**: Immediately improve user experience.
+2. **Automated Testing**: Ensure system quality and stability.
+3. **Comprehensive Monitoring**: Enable continuous metric analysis.
+4. **Scalability Optimization**: Essential for high-traffic environments.
+
