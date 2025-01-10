@@ -1,18 +1,19 @@
 # Endpoint: /update_password
 
-## 1. Dettagli
+## 1. Details
 - **URL**: `/update_password`
-- **Metodo**: `PATCH`
-- **Autenticazione**: Richiede un token JWT per identificare e autorizzare l’utente.
-- **Scopo**: Consentire agli utenti di aggiornare la propria password in modo sicuro.
+- **Method**: `PATCH`
+- **Authentication**: Requires a JWT token to identify and authorize the user.
+- **Purpose**: Allows users to securely update their password.
 
-## 2. Parametri Accettati
 
-Il corpo della richiesta deve essere in formato JSON:
-- **current_password** (stringa, obbligatorio): La password attuale dell’utente.
-- **new_password** (stringa, obbligatorio): La nuova password da impostare.
+## 2. Accepted Parameters
 
-Esempio di richiesta:
+The request body must be in JSON format:
+- **current_password** (string, mandatory): Current password
+- **new_password** (string, mandatory): New password
+
+Example:
 ```
 {
   "current_password": "OldPass123!",
@@ -20,47 +21,48 @@ Esempio di richiesta:
 }
 ```
 
-## 3. Comportamento
+## 3. Behavior
 
-### Autenticazione
-1. Recuperare il token JWT dall’intestazione `Authorization`.
-2. Verificare e decodificare il token per identificare l’utente.
+### **Authentication**
+1. Retrieve the JWT token from the `Authorization` header.
+2. Verify and decode the token to identify the user.
 
-### Validazioni
-1. **Presenza dei campi**:
-   - Controllare che `current_password` e `new_password` siano presenti.
-2. **Verifica password attuale**:
-   - Assicurarsi che la password attuale corrisponda a quella memorizzata (hashing password).
-3. **Nuova password valida**:
-   - Controllare che la nuova password rispetti i criteri di sicurezza: 
-     - Minimo 8 caratteri.(verifica fatta in frontend)
-     - Almeno 1 maiuscola, 1 numero e 1 carattere speciale.(verifica fatta in frontend)
-     - Diversa dalla password attuale.
+### **Validations**
+1. **Presence of Fields**:
+   - Ensure `current_password` and `new_password` are provided.
+2. **Verify Current Password**:
+   - Confirm that the provided current password matches the one stored (hashed) in the database.
+3. **Validate New Password**:
+   - Ensure the new password meets security criteria:
+     - Minimum 8 characters.
+     - At least one uppercase letter, one number, and one special character.
+     - Different from the current password.
 
-### Aggiornamento
-1. Generare un hash della nuova password con `bcrypt`.
-2. Aggiornare la password hashata nel database.
+### **Update Process**
+1. Generate a hash of the new password using `bcrypt`.
+2. Update the hashed password in the database.
 
-### Risposta
-- Confermare l’aggiornamento con un messaggio di successo.
+### **Response**
+- Confirm the update with a success message.
 
-## 4. Risposte
 
-### Successo
+## 4. Responses
 
-| HTTP Status | Messaggio                     |
-|-------------|-------------------------------|
+### Success
+
+| HTTP Status | Message                        |
+|-------------|--------------------------------|
 | 200 OK      | "Password updated successfully." |
 
-### Errori
+### Errors
 
-| Causa                     | HTTP Status       | Messaggio                                   |
-|---------------------------|-------------------|---------------------------------------------|
-| Parametri mancanti         | 400 Bad Request  | "Both current and new passwords are required." |
-| Password attuale errata    | 400 Bad Request  | "Current password is incorrect."           |
-| Token non valido           | 401 Unauthorized | "Invalid token."                            |
-| Utente non trovato         | 404 Not Found    | "User not found."                           |
-| Internal Server Error      | 500 Error    | "Internal Server Error."                           |
+| Cause                    | HTTP Status       | Message                                      |
+|--------------------------|-------------------|----------------------------------------------|
+| Missing Parameters       | 400 Bad Request  | "Both current and new passwords are required." |
+| Incorrect Current Password | 400 Bad Request | "Current password is incorrect."            |
+| Invalid Token            | 401 Unauthorized | "Invalid token."                             |
+| User Not Found           | 404 Not Found    | "User not found."                            |
+| Internal Server Error    | 500 Error        | "Internal Server Error."                     |
 
 
 ## 5. Codice Aggiornato
@@ -113,19 +115,20 @@ def update_password():
         return utils.jsonify_return_error("error", 500, "Internal Server Error."), 500
 ```
 
-## 6. Miglioramenti Futuri
+## 6. Future Improvements
 
-- **(miglioria opzionale) Rotazione dei Token JWT**:
-  - Dopo l’aggiornamento della password, invalidare i token JWT attuali e richiedere un nuovo login.
-- **(miglioria opzionale) Notifica via Email**:
-  - Inviare una notifica all’utente per informarlo che la password è stata modificata.
-- **(miglioria opzionale) Logging Avanzato**:
-  - Registrare i tentativi di aggiornamento della password per identificare attività sospette.
+- **JWT Token Rotation** (optional improvement):
+  - After a password update, invalidate current JWT tokens and require the user to log in again.
+- **Email Notification** (optional improvement):
+  - Send a notification to inform the user that their password has been updated.
+- **Advanced Logging** (optional improvement):
+  - Log password update attempts to identify suspicious activity.
 
-## 7. Prossimi Passi
-1. Implementare l’endpoint seguendo le specifiche.
-2. Testare i seguenti scenari:
-   - Aggiornamento riuscito con dati validi.
-   - Tentativi con password attuale errata.
-   - Validazione di nuove password non conformi.
-   - Superamento del rate limit.
+## 7. Next Steps
+1. Implement the endpoint according to the specifications.
+2. Test the following scenarios:
+   - Successful update with valid data.
+   - Attempts with incorrect current passwords.
+   - Validation of non-compliant new passwords.
+   - Exceeding the rate limit.
+
