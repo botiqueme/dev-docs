@@ -1,19 +1,19 @@
 # Endpoint: `/login`
 
-## 1. Dettagli
+## 1. Details
 - **Endpoint**: `/login`
-- **Metodo**: `POST`
-- **Autenticazione**: Nessuna (è l'endpoint di autenticazione iniziale).
-- **Scopo**: Consentire agli utenti registrati di accedere alla piattaforma utilizzando email e password.
+- **Method**: `POST`
+- **Authentication**: None (initial authentication endpoint)..
+- **Purpose**: Allow registered users to log in to the platform using email and password.
 
 ---
 
-## 2. Parametri Accettati
-Il corpo della richiesta deve essere in formato JSON:
-- `email` (stringa, obbligatorio): L'email registrata dell'utente.
-- `password` (stringa, obbligatorio): La password dell'utente.
+## 2. Accepted Parameters
+The request body must be in JSON format:
+- `email` (string, required): The user's registered email.
+- `password` (string, required): The user's password.
 
-Esempio di richiesta:
+Example request:
 ```
 {
   "email": "user@example.com",
@@ -23,15 +23,15 @@ Esempio di richiesta:
 
 ---
 
-## 3. Validazioni
+## 3. Validations
 1. **Email**:
-   - Verificare che sia presente e in un formato valido (es. `user@example.com`) (Gestita da frontend).
+   - Ensure it is present and in a valid format (e.g., user@example.com) (Handled by the frontend).
 2. **Password**:
-   - Assicurarsi che sia presente.
+   - Ensure it is present.
 3. **Rate Limiting**:
-   - Limitare il numero di tentativi consecutivi per prevenire attacchi brute force.
+   - Limit the number of consecutive attempts to prevent brute force attacks.
 
-Esempio con Flask-Limiter:
+Example using Flask-Limiter:
 ```
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
@@ -47,51 +47,51 @@ def login():
 
 ---
 
-## 4. Logica dell'Endpoint
-1. **Recupero Utente**:
-   - Cercare nel database l'utente corrispondente all'email fornita.
-   - Restituire errore se l'utente non esiste.
+## 4. Endpoint Logic
+1. **User Retrieval:**:
+   - Search the database for the user corresponding to the provided email.
+   - Return an error if the user does not exist.
 
-2. **Verifica dello Stato dell'Utente**:
-   - Controllare se l'utente ha verificato l'email (`is_verified`).
-   - Restituire errore se l'email non è verificata.
+2. **User Status Verification:**:
+   - Check if the user has verified their email (is_verified).
+   - Return an error if the email is not verified.
 
-3. **Verifica della Password**:
-   - Utilizzare `bcrypt` per confrontare la password fornita con quella hashata nel database.
-   - Restituire errore se la password non corrisponde.
+3. **Password Verification:**:
+   - Use bcrypt to compare the provided password with the hashed one in the database.
+   - Return an error if the password does not match.
 
-4. **Generazione del Token JWT**:
-   - Creare un token JWT con le seguenti informazioni:
-     - `user_id`: L'ID univoco dell'utente.
-     - `email`: L'email dell'utente.
-     - `exp`: Scadenza del token (es. 1 ora).
-   - Firmare il token con la chiave segreta del backend.
+4. **JWT Token Generation:**:
+   - Create a JWT token with the following information:
+     - `user_id`: The user's unique ID.
+     - `email`: The user's email.
+     - `exp`: Token expiration (e.g., 1 hour).
+   - Sign the token with the backend's secret key.
 
-5. **Risposta al Frontend**:
-   - Restituire il token JWT, l'`user_id` e un messaggio di successo.
+5. **Response to Frontend:**:
+   - Return the JWT token, user_id, and a success message.
 
 ---
 
 ## 5. Sicurezza
 1. **HTTPS**:
-   - Obbligatorio per tutte le richieste per proteggere credenziali e token JWT.
+   - Mandatory for all requests to protect credentials and JWT tokens.
 
-2. **Sicurezza del Token JWT**:
-   - Utilizzare una chiave segreta robusta (`SECRET_KEY`).
-   - Configurare una scadenza adeguata (es. 1 ora).
-   - **Aggiungere `iat` (issued at) e `jti` (unique identifier) al payload del JWT (miglioria opzionale)** per maggiore sicurezza.
+2. **JWT Token Security:**:
+   - Use a robust secret key (SECRET_KEY).
+   - Configure an appropriate expiration (e.g., 1 hour).
+   - Add iat (issued at) and jti (unique identifier) to the JWT payload (optional improvement) for enhanced security..
 
-3. **Blacklist dei Token (miglioria opzionale)**:
-   - Implementare una blacklist per invalidare i token in caso di logout o compromissione.
-
-4. **Protezione contro Brute Force**:
-   - Implementare rate limiting sull'endpoint `/login`.
+3. **Token Blacklist (optional improvement):**:
+   - Implement a blacklist to invalidate tokens in case of logout or compromise.
+   - 
+4. **Protection Against Brute Force:**:
+   - Implement rate limiting on the /login endpoint.
 
 ---
 
-## 6. Risposte dell'Endpoint
+## 6. Endpoint Responses
 
-### Successo
+### Success
 - **HTTP Status**: `200 OK`
 - **Body**:
 ```
@@ -106,9 +106,9 @@ def login():
 }
 ```
 
-### Errori
+### Errors
 
-1. **Utente non trovato**:
+1. **User Not Found**:
    - **HTTP Status**: `401 Unauthorized`
    - **Body**:
 ```
@@ -119,7 +119,7 @@ def login():
 }
 ```
 
-2. **Email non verificata**:
+2. **Email not verified**:
    - **HTTP Status**: `403 Forbidden`
    - **Body**:
 ```
@@ -143,7 +143,7 @@ def login():
 
 ---
 
-## 7. Codice Aggiornato
+## 7. Code
 
 ```
 @v1.route('/login', methods=['POST'])
@@ -195,21 +195,21 @@ def login():
 
 ---
 
-## 8. Miglioramenti Futuri per l'Endpoint `/login`
+## 8. Future Improvements for the /login Endpoint
 
-1. **Blacklist per Token JWT (miglioria opzionale)**:
-   - Implementare una blacklist per invalidare i token JWT in caso di logout o compromissione.
+1. **JWT Token Blacklist (optional improvement):**:
+   - Implement a blacklist to invalidate JWT tokens in case of logout or compromise.
 
-2. **Blocco IP su Tentativi Falliti (miglioria opzionale)**:
-   - Configurare un meccanismo per bloccare temporaneamente gli IP che superano un certo numero di tentativi di login falliti.
+2. **IP Blocking for Failed Attempts (optional improvement):**:
+   - Configure a mechanism to temporarily block IPs exceeding a certain number of failed login attempts.
 
-3. **Monitoraggio Avanzato (miglioria opzionale)**:
-   - Integrare strumenti di monitoraggio come Prometheus o Grafana per raccogliere metriche dettagliate:
-     - Numero di login riusciti e falliti.
-     - Tentativi di login per IP e frequenza di blocchi.
+3. **Advanced Monitoring (optional improvement):**:
+   - Integrate monitoring tools like Prometheus or Grafana to gather detailed metrics:
+     - Number of successful and failed logins.
+     - Login attempts per IP and frequency of blocks.
 
-4. **Feedback Migliorato (miglioria opzionale)**:
-   - Includere nelle risposte il numero rimanente di tentativi prima del blocco per migliorare l'esperienza utente.
+4. **Enhanced Feedback (optional improvement):**:
+   - Include the remaining number of attempts before blocking in the responses to improve user experience.
 
 ---
 
