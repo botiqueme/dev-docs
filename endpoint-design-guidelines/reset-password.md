@@ -1,31 +1,31 @@
 # Endpoint: `/reset_password`
 
-## Scopo
-Consente agli utenti di reimpostare la propria password in modo sicuro utilizzando un token di reset generato in precedenza. La nuova versione implementa miglioramenti significativi in termini di sicurezza e scalabilità.
+## Purpose
+Allows users to securely reset their password using a previously generated reset token. This updated version implements significant improvements in security and scalability.
 
 ---
 
-## 1. Dettagli Tecnici
+## 1. Technical Details
 
-### **Metodo**
+### **Method**
 `POST`
 
 ### **URL**
 `/reset_password`
 
-### **Autenticazione**
-Nessuna (pubblico).
+### **Authentication**
+None (public).
 
 ---
 
-## 2. Parametri della Richiesta
+## 2. Request Parameters
 
-| **Parametro**  | **Tipo**   | **Obbligatorio** | **Descrizione**                                      |
-|----------------|------------|------------------|------------------------------------------------------|
-| `token`        | Stringa    | Sì               | Token di reset ricevuto via email.                  |
-| `new_password` | Stringa    | Sì               | Nuova password che l'utente desidera impostare.     |
+| **Parameter**  | **Type**   | **Required** | **Description**                                      |
+|----------------|------------|--------------|------------------------------------------------------|
+| `token`        | String     | Yes          | Reset token received via email.                     |
+| `new_password` | String     | Yes          | The new password the user wants to set.             |
 
-Esempio di richiesta:
+Example request:
 ```
 {
   "token": "example_reset_token",
@@ -35,63 +35,64 @@ Esempio di richiesta:
 
 ---
 
-## 3. Flusso Logico dell'Endpoint
+## 3. Endpoint Logic Flow
 
-### **1. Validazione dell'Input**
+### **1. Input Validation**
 - **Token**:
-  - Verifica che sia presente e nel formato corretto.
+  - Verify it is present and correctly formatted.
 - **Password**:
-  - Deve rispettare i criteri di sicurezza:
-    - Lunghezza minima di 8 caratteri.
-    - Deve includere:
-      - Una lettera maiuscola.
-      - Una lettera minuscola.
-      - Un numero.
-      - Un carattere speciale.
+  - Must meet security criteria:
+    - Minimum length of 8 characters.
+    - Must include:
+      - An uppercase letter.
+      - A lowercase letter.
+      - A number.
+      - A special character.
 
-### **2. Decodifica e Validazione del Token**
-- Utilizzare `URLSafeTimedSerializer` per:
-  - Decodificare il token.
-  - Verificare che non sia scaduto (validità di 15 minuti).
-  - Estrarre l'email associata.
-- **Gestione degli Errori**:
-  - **Token scaduto**: Restituire un errore specifico.
-  - **Token non valido**: Restituire un errore specifico.
+### **2. Token Decoding and Validation**
+- Use `URLSafeTimedSerializer` to:
+  - Decode the token.
+  - Verify it is not expired (valid for 15 minutes).
+  - Extract the associated email.
+- **Error Handling**:
+  - **Expired Token**: Return a specific error.
+  - **Invalid Token**: Return a specific error.
 
-### **3. Protezione contro Race Condition (miglioria opzionale)**
-- Utilizzare un lock temporaneo per impedire l'uso simultaneo dello stesso token su richieste concorrenti.
+### **3. Protection Against Race Conditions (optional improvement)**
+- Use a temporary lock to prevent simultaneous use of the same token in concurrent requests.
 
-### **4. Recupero dell'Utente**
-- Cercare l'utente associato all'email estratta dal token.
-- Restituire un errore se l'utente non esiste.
+### **4. User Retrieval**
+- Search for the user associated with the email extracted from the token.
+- Return an error if the user does not exist.
 
-### **5. Aggiornamento della Password**
-- Hashare la nuova password utilizzando `bcrypt`.
-- Aggiornare il campo `password_hash` nel database.
+### **5. Password Update**
+- Hash the new password using `bcrypt`.
+- Update the `password_hash` field in the database.
 
-### **6. Invalidazione del Token**
-- Aggiungere un identificativo univoco (`jti`) al token.
-- Memorizzare i token utilizzati in una blacklist per invalidarli dopo l'uso.
+### **6. Token Invalidation**
+- Add a unique identifier (`jti`) to the token.
+- Store used tokens in a blacklist to invalidate them after use.
 
-### **7. Logging Dettagliato**
-- Registrare:
-  - Email associate alla richiesta.
-  - Risultati (successo/fallimento).
+### **7. Detailed Logging**
+- Log:
+  - Emails associated with the request.
+  - Outcomes (success/failure).
   - Timestamp.
 
-### **8. Rate Limiting Globale (miglioria opzionale)**
-- Limitare le richieste consecutive per IP o email per prevenire attacchi.
+### **8. Global Rate Limiting (optional improvement)**
+- Limit consecutive requests by IP or email to prevent attacks.
 
 ---
 
-## 4. Risposte dell'Endpoint
+## 4. Endpoint Responses
 
-| **Scenario**               | **HTTP Status**   | **Messaggio**                                |
-|----------------------------|-------------------|---------------------------------------------|
-| **Successo**               | `200 OK`         | "Password reset successfully."              |
-| **Token Mancante/Non Valido** | `400 Bad Request` | "Invalid or expired token."                |
-| **Password Non Valida**     | `400 Bad Request` | "Invalid password format."                  |
-| **Utente Non Trovato**      | `404 Not Found`   | "User not found."                           |
+| **Scenario**               | **HTTP Status**     | **Message**                                |
+|----------------------------|---------------------|---------------------------------------------|
+| **Success**                | `200 OK`           | "Password reset successfully."              |
+| **Missing/Invalid Token**  | `400 Bad Request`  | "Invalid or expired token."                 |
+| **Invalid Password**       | `400 Bad Request`  | "Invalid password format."                  |
+| **User Not Found**         | `404 Not Found`    | "User not found."                           |
+
 
 Esempio di Risposta Successo:
 ```
@@ -215,24 +216,24 @@ def reset_password():
 
 ---
 
-## 6. Sicurezza e Prossimi Passi
+## 6. Security and Next Steps
 
-### **Sicurezza**
-1. **Rotazione dei Token**:
-   - Implementata con l'uso di una blacklist centralizzata.
-2. **Protezione CSRF (miglioria opzionale)**:
-   - Aggiungere un token CSRF per garantire che le richieste provengano da fonti legittime.
+### **Security**
+1. **Token Rotation**:
+   - Implemented with the use of a centralized blacklist.
+2. **CSRF Protection (optional improvement)**:
+   - Add a CSRF token to ensure requests originate from legitimate sources.
 
-### **Prossimi Passi**
-1. **Test Completi**:
-   - Validare scenari complessi:
-     - Token scaduti o non validi.
-     - Password non conformi.
-     - Utente inesistente.
-2. **Integrazione Frontend**:
-   - Creare una UI dedicata per l'inserimento del token e della nuova password.
-3. **Monitoraggio e Analisi**:
-   - Utilizzare strumenti di monitoraggio (es. Grafana) per raccogliere statistiche sull'uso dell'endpoint.
+### **Next Steps**
+1. **Comprehensive Testing**:
+   - Validate complex scenarios:
+     - Expired or invalid tokens.
+     - Non-compliant passwords.
+     - Non-existent users.
+2. **Frontend Integration**:
+   - Create a dedicated UI for entering the token and new password.
+3. **Monitoring and Analysis**:
+   - Use monitoring tools (e.g., Grafana) to collect statistics on endpoint usage.
 
 ---
 
