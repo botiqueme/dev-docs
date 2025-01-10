@@ -1,40 +1,40 @@
 # Endpoint: `/register`
 
-## Scopo
-Registrare un nuovo utente, assicurandosi che i dati siano validi, sicuri e pronti per l'uso in una piattaforma che richiede verifica dell'email. Questo endpoint è progettato per essere sicuro, scalabile e integrabile senza ambiguità.
+## Purpose
+Register a new user, ensuring the data is valid, secure, and ready for use in a platform requiring email verification. This endpoint is designed to be secure, scalable, and unambiguous.
 
 ---
 
-## Specifiche Tecniche
+## Technical Specifications
 
-### **Metodo**
+### **Method**
 `POST`
 
 ### **URL**
 `/register`
 
-### **Autenticazione**
-Nessuna (pubblico).
+### **Authentication**
+None (public).
 
 ---
 
-## Parametri
+## Parameters
 
-### **Richiesti**
-| **Nome**      | **Tipo**  | **Descrizione**                   | **Validazione**                 |
+### **Required**
+| **Name**       | **Type**  | **Description**                 | **Validation**                |
 |---------------|-----------|-----------------------------------|---------------------------------|
-| `email`       | Stringa   | Email dell'utente.               | Formato valido, non temporanea.|
-| `password`    | Stringa   | Password da hashare.             | Minimo 8 caratteri, almeno 1 maiuscola, 1 numero, 1 speciale. |
-| `name`        | Stringa   | Nome dell'utente.                | Non vuoto.                     |
-| `surname`     | Stringa   | Cognome dell'utente.             | Non vuoto.                     |
+| `email`        | String    | User's email.                  | Valid format, not disposable. |
+| `password`     | String    | Password to be hashed.         | Minimum 8 characters, at least 1 uppercase, 1 number, 1 special character. |
+| `name`         | String    | User's first name.             | Cannot be empty.              |
+| `surname`      | String    | User's last name.              | Cannot be empty.              |
 
-### **Opzionali**
-| **Nome**       | **Tipo**  | **Descrizione**                   | **Validazione**                 |
-|-----------------|-----------|-----------------------------------|---------------------------------|
-| `phone_number` | Stringa   | Numero di telefono.              | Regex per formati internazionali.|
-| `vat_number`   | Stringa   | Partita IVA.                     | Regex per formati nazionali.   |
+### **Optional**
+| **Name**        | **Type**  | **Description**                 | **Validation**                |
+|-----------------|-----------|---------------------------------|--------------------------------|
+| `phone_number`  | String    | User's phone number.           | Regex for international formats. |
+| `vat_number`    | String    | VAT number.                    | Regex for national formats.   |
 
-### Esempio di Richiesta
+### Request Example
 ```
 POST /register
 Content-Type: application/json
@@ -51,57 +51,57 @@ Content-Type: application/json
 
 ---
 
-## Risposte
+## Responses
 
-### **Successo**
-| **HTTP Status** | **Messaggio**                          |
+### **Success**
+| **HTTP Status** | **Message**                          |
 |-----------------|---------------------------------------|
 | `201 Created`   | "User registered. Please verify your email." |
 
-### **Errori**
-| **Causa**                  | **HTTP Status** | **Messaggio**                                |
+### **Errors**
+| **Causs**                  | **HTTP Status** | **Message**                                |
 |----------------------------|-----------------|---------------------------------------------|
-| Email temporanea           | `400 Bad Request` | "Disposable emails are not allowed."       |
-| Email duplicata            | `409 Conflict`    | "Email already registered."                |
-| Rate limit superato        | `429 Too Many Requests` | "Too many requests. Please try again later." |
-| Integrita' del database    | `500 Error` | "Internal Server Error, please contact the admin" |
+| Disposable email	          | `400 Bad Request` | "Disposable emails are not allowed."       |
+| Duplicate email            | `409 Conflict`    | "Email already registered."                |
+| Rate limit exceeded        | `429 Too Many Requests` | "Too many requests. Please try again later." |
+| Database integrity issue   | `500 Error` | "Internal Server Error, please contact the admin" |
 
 ---
 
-## Flusso Dettagliato
+## Detailed Flow
 
-### **1. Ricezione della Richiesta**
-1. Recuperare i parametri inviati dal frontend.
-2. Controllare che tutti i campi obbligatori siano presenti (gestito dal frontend).
+### **1. Request Handling**
+1. Retrieve parameters sent by the frontend.
+2. Ensure all required fields are present (handled by frontend).
 
-### **2. Validazione**
+### **2. Validation**
 - **Email**:
-  - Formato valido (gestito dal frontend).
-  - Non temporanea (libreria `is_disposable_email`).
+  - Valid format (handled by frontend).
+  - Not disposable (via `is_disposable_email` library).
 - **Password**:
-  - Lunghezza minima 8 caratteri (gestito dal frontend)
-  - Deve contenere almeno 1 maiuscola, 1 numero, 1 carattere speciale. (gestito dal frontend)
-- **Campi opzionali**:
-  - Numero di telefono (regex internazionale - gestito dal frontend).
-  - Partita IVA (regex nazionale - gestito dal frontend).
+  - Minimum length of 8 characters (handled by frontend).
+  - Must contain at least 1 uppercase, 1 number, and 1 special character (handled by frontend).
+- **Optional Fields**:
+  - Phone number (regex for international formats - handled by frontend).
+  - VAT number (regex for national formats - handled by frontend).
 
-### **3. Creazione dell'Utente**
-1. Hash della password (`bcrypt`).
-2. Generazione di un ID univoco per l'utente (`UUID`).
-3. Salvataggio nel database:
-   - Verificare che l'email non sia duplicata.
+### **3. User Creation**
+1. Hash the password (`bcrypt`).
+2. Generate a unique ID for the user (`UUID`).
+3. Save the user to the database:
+   - Ensure the email is not duplicated.
 
-### **4. Invio dell'Email di Verifica**
-1. Creazione di un token di verifica con `URLSafeTimedSerializer`.
-2. Invio del token tramite un'email contenente il link per verificare l'account.
+### **4. Email Verification**
+1. Create a verification token using `URLSafeTimedSerializer`.
+2. Send the token via an email containing a link to verify the account.
 
-### **5. Risposte**
-- Successo: Confermare che l'utente è stato registrato e richiedere la verifica email.
-- Errore: Restituire un messaggio appropriato per ogni problema riscontrato.
+### **5. Responses**
+- Success: Confirm the user has been registered and request email verification.
+- Error: Return an appropriate message for each encountered issue.
 
 ---
 
-## Codice Implementazione
+## Implementation Code
 
 ```
 @v1.route('/register', methods=['POST'])
@@ -186,33 +186,33 @@ def register():
 
 ---
 
-## Dettagli di Sicurezza
+## Security Details
 1. **Rate Limiting**:
-   - 3 richieste al minuto per IP con `Flask-Limiter`.
-2. **Password Sicura**:
-   - Hashata con `bcrypt`.
-3. **Email Temporanee Bloccate**:
-   - Validazione tramite libreria specifica.
-4. **Token Sicuro per Verifica Email**:
-   - Utilizzo di `URLSafeTimedSerializer`.
+   - 3 requests per minute per IP using Flask-Limiter.
+2. **Secure Passwords**:
+   - Hashed with bcrypt.
+3. **Blocked Disposable Emails:**:
+   - Validation through a dedicated library.
+4. **Secure Email Verification Token:**:
+   - Using URLSafeTimedSerializer.
 
 ---
 
-## Considerazioni Future e Migliorie Suggerite
+## Future Considerations and Suggested Improvements
 
-### 1. Gestione degli Utenti Non Verificati
-- **Problema**: Gli utenti che non verificano l'email possono rimanere nel database indefinitamente.
-- **Soluzione**:
-  - Implementare un sistema per eliminare automaticamente gli utenti non verificati dopo un periodo (es. 7 giorni).
+### 1. Handling Unverified Users
+- **Problem**: Users who do not verify their email may remain in the database indefinitely.
+- **Solution**:
+  - Implement a system to automatically delete unverified users after a period (e.g., 7 days).
 
-### 2. Test Automatici
-- Scrivere test automatici per i seguenti scenari:
-  - **Registrazione valida**
-  - **Email duplicata**
-  - **Parametri mancanti**
+### 2. Automated Testing
+- Write automated tests for the following scenarios:
+  - **Valid registration**
+  - **Duplicate email**
+  - **Missing parameters**
 
-### 3. Scalabilità per Invio Email
-- Implementare una coda per gestire l'invio delle email.
+### 3. Scalable Email Sending
+- Implement a queue to manage email sending.
 
-### 4. Monitoraggio e Metriche
-- Aggiungere metriche per monitorare il comportamento dell'endpoint.
+### 4. Monitoring and Metrics
+- Add metrics to monitor the behavior of the endpoint.
