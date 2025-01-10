@@ -1,35 +1,38 @@
 # Endpoint: /update_user
 
-## Dettagli
+## 1. Details
 - **URL**: `/update_user`
-- **Metodo**: `PUT` o `PATCH` (preferibile per aggiornamenti parziali).
-- **Autenticazione**: Richiedere un token JWT per identificare e autorizzare l’utente.
-- **Scopo**: Consentire agli utenti di aggiornare le proprie informazioni personali.
+- **Method**: `PUT` or `PATCH` (preferred for partial updates).
+- **Authentication**: Requires a JWT token to identify and authorize the user.
+- **Purpose**: Allows users to update their personal information.
 
-## Comportamento
+## Behavior
 
-### 1. Autenticazione
-- Recuperare il token JWT dall’intestazione `Authorization`.
-- Decodificare il token per ottenere l’`user_id`.
-- Verificare che l’utente esista nel database.
+### **Authentication**
+- Retrieve the JWT token from the `Authorization` header.
+- Decode the token to extract the `user_id`.
+- Verify that the user exists in the database.
 
-### 2. Parametri Accettati
+## 2. Accepted Parameters
 
-Il corpo della richiesta deve essere in formato JSON. Campi aggiornabili:
-- **name** (stringa)
-- **surname** (stringa)
-- **phone_number** (stringa, formato validato)
-- **company** (stringa)
-- **vat_number** (stringa, formato validato)
+The request body must be in JSON format. Updatable fields:
 
-Nota: È importante validare ogni campo prima di aggiornarlo nel database (verifica fatta in frontend)
+| **Field**       | **Type**  | **Description**                                 |
+|-----------------|-----------|-------------------------------------------------|
+| `name`          | String    | User's first name.                              |
+| `surname`       | String    | User's last name.                               |
+| `phone_number`  | String    | User's phone number (validated format).         |
+| `company`       | String    | User's company name.                            |
+| `vat_number`    | String    | User's VAT number (validated format).           |
 
-### 3. Aggiornamento
-- Aggiornare solo i campi presenti nella richiesta.
-- Se un campo non è incluso, mantenerne il valore attuale nel database.
+Note: Each filed has to be validated before going into the database (frontend)
 
-### 4. Risposta
-- Restituire uno stato di successo con i dati aggiornati o un messaggio di errore in caso di fallimento.
+### **Update Logic**
+- Update only the fields included in the request.
+- Retain current values for fields not provided in the request.
+- 
+### **Response**
+- Return a success message with updated data or an error message in case of failure.
 
 ## 3. Esempio di Richiesta
 
@@ -45,13 +48,14 @@ Richiesta `PATCH /update_user`
 }
 ```
 
-## 4. Risposte dell’Endpoint
+## 4. Responses
 
-### Successo
+### Success
 
-| HTTP Status | Messaggio     |
+| HTTP Status | Message       |
 |-------------|---------------|
-| 200 OK      | "Successo"    |
+| 200 OK      | "Success"     |
+
 
 **Body:**
 ```
@@ -68,7 +72,7 @@ Richiesta `PATCH /update_user`
 }
 ```
 
-### Errore: Utente Non Autenticato
+### Errore: Authorization token required.
 
 | HTTP Status | Messaggio                  |
 |-------------|----------------------------|
@@ -83,7 +87,7 @@ Richiesta `PATCH /update_user`
 }
 ```
 
-### Errore: Utente Non Trovato
+### Errore: User not found.
 
 | HTTP Status | Messaggio                  |
 |-------------|----------------------------|
@@ -172,32 +176,31 @@ def update_user():
 
 ```
 
-## 6. Validazioni da Implementare
-1. **Formato Numero di Telefono**:
-   - Verificare che `phone_number` sia in un formato valido (es. con prefisso internazionale, come +1234567890).
-2. **Partita IVA**:
-   - Verificare che `vat_number` sia valido per il paese (es. per l’Italia, formato IT12345678901).
-3. **Dati Mancanti**:
-   - Ignorare i campi non inclusi nella richiesta senza sovrascrivere i valori esistenti.
+## 6. Validations to Implement
+1. **Phone Number Format**:
+   - Verify that `phone_number` is in a valid format (e.g., with international prefix, such as +1234567890).
+2. **VAT Number**:
+   - Validate that `vat_number` is correct for the respective country (e.g., for Italy, format IT12345678901).
+3. **Missing Data**:
+   - Ignore fields not included in the request without overwriting existing values.
+     
+## 7. Additional Considerations (Optional Improvements)
 
-## 7. Considerazioni Aggiuntive (Migliorie Opzionali)
-
-1. **Gestione degli Errori Dettagliata**:
-   - Fornire errori specifici per ogni tipo di fallimento, come errore nel formato dei dati o problemi con il salvataggio nel database.
-   - **Miglioria opzionale**: Includere il tipo di errore (es. errore di convalida, errore di database) nella risposta per facilitare la risoluzione dei problemi.
+1. **Detailed Error Handling**:
+   - Provide specific errors for each type of failure, such as data validation issues or database save errors.
 2. **Rate Limiting**:
-   - Limitare il numero di richieste per IP o utente per prevenire abusi (e.g. 5 richieste per minuto).
-   - **Miglioria opzionale**: Aggiungere il rate limiting per prevenire tentativi di abuso dell’endpoint (ad esempio attacchi brute force).
+   - Limit the number of requests per IP or user to prevent abuse (e.g., 5 requests per minute).
 3. **Audit Log**:
-   - Creare un log di audit per tracciare quando e da chi sono stati effettuati aggiornamenti ai dati dell’utente.
-   - **Miglioria opzionale**: Integrare un sistema di logging per monitorare le modifiche e mantenere traccia delle operazioni per scopi di sicurezza e debugging.
+   - Create an audit log to track when and by whom user data updates were made.
 
-## 8. Prossimi Passi
-1. Implementare l’endpoint seguendo le specifiche.
-2. Testare i seguenti scenari:
-   - Aggiornamento parziale (es. modifica solo del `name`).
-   - Aggiornamento completo con tutti i campi.
-   - Invio di dati non validi (es. numero di telefono errato).
-3. Aggiornare la documentazione API per includere dettagli su questo endpoint.
-4. Integrare il rate limiting per prevenire abusi.
-5. Valutare l’implementazione di un sistema di audit log per monitorare gli aggiornamenti.
+## 8. Next Steps
+1. Implement the endpoint according to the specifications.
+2. Test the following scenarios:
+   - Partial updates (e.g., only modifying the `name`).
+   - Full updates with all fields.
+   - Submission of invalid data (e.g., incorrect phone number format).
+3. Update the API documentation to include details about this endpoint.
+4. Integrate rate limiting to prevent abuse.
+5. Evaluate implementing an audit log system to monitor updates.
+
+---
