@@ -1,25 +1,26 @@
-# Endpoint: `/refresh_token`
 
-## 1. Details
+# **Endpoint: `/refresh_token`**
+
+## **1. Details**
 - **URL**: `/refresh_token`
 - **Method**: `POST`
-- **Authentication**: Requires the refresh token.
+- **Authentication**: Requires a valid refresh token.
 - **Purpose**: Provide a new access token when the previous one has expired.
 
 ---
 
-## 2. Behavior
+## **2. Behavior**
 
 ### **1. Receiving the Refresh Token**
 - Retrieve the refresh token from the `Authorization` header or an HTTP-only cookie.
-- 
+
 ### **2. Validating the Refresh Token**
 - Decode the refresh token using the server's secret key.
 - Verify:
-  - Token validity (not expired).
-  - Token type (`refresh`).
-  - Associated user exists.
-- Return an error if the token is invalid.
+  - **Token validity** (not expired).
+  - **Token type** (`refresh`).
+  - **User existence** in the database.
+  - **User status (`is_active`)** → *If `is_active = False`, block the request and return `403 Forbidden`*.
 
 ### **3. Generating a New Access Token**
 - Create a new access token with a short expiration time.
@@ -29,39 +30,45 @@
 
 ---
 
-## 3. Accepted Parameters
+## **3. Accepted Parameters**
 - No parameters in the request body.
 - Requires the refresh token in the `Authorization` header.
 
-Example header:
+#### Example header:
 ```
 Authorization: Bearer <refresh_token>
 ```
 
 ---
 
-## 4. Endpoint Responses
+## **4. Endpoint Responses**
 
-### Success
-- **HTTP Status**: `200 OK`
-- **Body**:
+### ✅ **Success**
+| **HTTP Status** | **Message**                                  |
+|----------------|----------------------------------------------|
+| `200 OK`       | "Access token refreshed successfully."       |
+
+#### Example Response:
 ```
 {
   "status": "success",
   "code": 200,
   "data": {
-    "access_token": "nuovo_access_token"
+    "access_token": "new_access_token"
   }
 }
 ```
 
 ---
 
-### Errors
+### ❌ **Errors**
 
-1. **Missing Refresh Token:**:
-   - **HTTP Status**: `401 Unauthorized`
-   - **Body**:
+#### 1️⃣ **Missing Refresh Token**
+| **HTTP Status** | **Message**                          |
+|----------------|--------------------------------------|
+| `401 Unauthorized` | "Refresh token missing."         |
+
+#### Example Response:
 ```
 {
   "status": "error",
@@ -70,9 +77,14 @@ Authorization: Bearer <refresh_token>
 }
 ```
 
-2. **Invalid Refresh Token**:
-   - **HTTP Status**: `401 Unauthorized`
-   - **Body**:
+---
+
+#### 2️⃣ **Invalid Refresh Token**
+| **HTTP Status** | **Message**                          |
+|----------------|--------------------------------------|
+| `401 Unauthorized` | "Invalid refresh token."         |
+
+#### Example Response:
 ```
 {
   "status": "error",
@@ -81,9 +93,14 @@ Authorization: Bearer <refresh_token>
 }
 ```
 
-3. **User Not Found**:
-   - **HTTP Status**: `404 Not Found`
-   - **Body**:
+---
+
+#### 3️⃣ **User Not Found**
+| **HTTP Status** | **Message**                          |
+|----------------|--------------------------------------|
+| `404 Not Found` | "User not found."                  |
+
+#### Example Response:
 ```
 {
   "status": "error",
@@ -91,76 +108,115 @@ Authorization: Bearer <refresh_token>
   "message": "User not found."
 }
 ```
-4. **Refresh Token Expired**:
-   - **HTTP Status**: `401 Error`
-   - **Body**:
+
+---
+
+#### 4️⃣ **User Inactive (`is_active = False`)**
+| **HTTP Status** | **Message**                          |
+|----------------|--------------------------------------|
+| `403 Forbidden` | "Account is inactive. Please contact support." |
+
+#### Example Response:
+```
+{
+  "status": "error",
+  "code": 403,
+  "message": "Account is inactive. Please contact support."
+}
+```
+
+---
+
+#### 5️⃣ **Refresh Token Expired**
+| **HTTP Status** | **Message**                          |
+|----------------|--------------------------------------|
+| `401 Unauthorized` | "Refresh token has expired."     |
+
+#### Example Response:
 ```
 {
   "status": "error",
   "code": 401,
   "message": "Refresh token has expired."
 }
+```
 
 ---
 
-## 5. Code
+## **5. Updated Code Implementation**
 
 ```
 @v1.route('/refresh_token', methods=['POST'])
 @jwt_required(refresh=True)
 def refresh():
     """
-    Endpoint per rigenerare un access token utilizzando un refresh token valido.
+    Endpoint to regenerate an access token using a valid refresh token.
     """
+
     try:
-        # Ottieni l'identità dell'utente dal refresh token
+        # Extract user ID from refresh token
         current_user_id = get_jwt_identity()
 
-        # Genera un nuovo access token
+        # Retrieve user from the database
+        user = User.query.filter_by(user_id=current_user_id).first()
+
+        # Check if user exists
+        if not user:
+            return jsonify_return_error("error", 404, "User not found."), 404
+
+        # Check if user is active
+        if not user.is_active:
+            return jsonify_return_error("error", 403, "Account is inactive. Please contact support."), 403
+
+        # Generate a new access token
         new_access_token = utils.create_access_token(identity=current_user_id)
 
-        # Prepara i dati della risposta
+        # Prepare response data
         data = {
             "message": "Access token refreshed successfully",
             "access_token": new_access_token
         }
 
-        # Restituisci la risposta formattata
+        # Return formatted response
         return utils.jsonify_return_success("success", 200, data), 200
 
+    except ExpiredSignatureError:
+        return jsonify_return_error("error", 401, "Refresh token has expired."), 401
+
     except Exception as e:
-        # Gestione errori generici
-        return jsonify_return_error("error", 500, "An unexpected error occurred"), 500
+        return jsonify_return_error("error", 500, "An unexpected error occurred."), 500
+```
 
 ---
 
-## 6. Validations to Implement
+## **6. Validations to Implement**
 
-1. **JWT Token**:
-   - Ensure the token is valid and not expired.
-   - Check that the type is `refresh`.
+1️⃣ **JWT Token Validation**
+- Ensure the token is valid and not expired.
+- Verify that the token type is `refresh`.
 
-2. **Blacklist**:
-   - Implement a blacklist to invalidate refresh tokens upon logout.
+2️⃣ **User Status Check (`is_active`)**
+- If `is_active = False`, **block token refresh** and return `403 Forbidden`.
 
-3. **Refresh Token Rotation (optional improvement)**:
-   - Generate a new refresh token when the current one is used.
+3️⃣ **Blacklist Implementation**
+- Implement a refresh token blacklist for logout scenarios.
 
-4. **Advanced Security (optional improvement)**:
-   - Include `jti` (unique identifier) to track tokens.
+4️⃣ **Refresh Token Rotation (optional improvement)**
+- Issue a new refresh token when the current one is used.
 
----
-
-## 7. Next Steps
-
-1. **Implement the endpoint** following the specifications.
-2. **Test**:
-   - Valid requests with a working refresh token.
-   - Requests with an expired or invalid token.
-   - Behavior when the user is not found.
-3. **Integrate the refresh token blacklist**.
-4. **Update API documentation** to include details about this endpoint.
-5. **Integrate token rotation (optional)** to enhance security.
+5️⃣ **Advanced Security Enhancements (optional improvement)**
+- Include **`jti` (unique identifier)** to track token usage.
 
 ---
 
+## **7. Next Steps**
+✅ **Update frontend to handle `403 Forbidden` errors properly**  
+✅ **Implement token blacklist and refresh rotation (optional)**  
+✅ **Test cases:**  
+   - Valid token refresh  
+   - Expired refresh token  
+   - Invalid refresh token  
+   - User not found  
+   - User inactive (`is_active = False`)  
+
+---
