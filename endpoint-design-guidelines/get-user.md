@@ -1,7 +1,4 @@
 
-
-## **Updated `/get_user` Endpoint Specification**
-```markdown
 # Endpoint: `/get_user`
 
 ## Purpose
@@ -184,12 +181,5 @@ def get_user():
 3. **Rate Limiting**
    - Optional rate limiting to prevent abuse.
 
----
 
-### ✅ **Verification Summary**
-- **`is_active` Integrated Properly**
-- **Inactive Users Blocked (`403 Forbidden`)**
-- **Updated Response Format**
-- **Security Enhancements**
-- **Previous Content Preserved**
 
