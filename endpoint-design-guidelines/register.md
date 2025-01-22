@@ -1,11 +1,11 @@
-# Endpoint: `/register`
+# **Endpoint: `/register`**
 
-## Purpose
+## **Purpose**
 Register a new user, ensuring the data is valid, secure, and ready for use in a platform requiring email verification. This endpoint is designed to be secure, scalable, and unambiguous.
 
 ---
 
-## Technical Specifications
+## **1. Technical Specifications**
 
 ### **Method**
 `POST`
@@ -18,11 +18,11 @@ None (public).
 
 ---
 
-## Parameters
+## **2. Parameters**
 
 ### **Required**
 | **Name**       | **Type**  | **Description**                 | **Validation**                |
-|---------------|-----------|-----------------------------------|---------------------------------|
+|----------------|-----------|-----------------------------------|--------------------------------|
 | `email`        | String    | User's email.                  | Valid format, not disposable. |
 | `password`     | String    | Password to be hashed.         | Minimum 8 characters, at least 1 uppercase, 1 number, 1 special character. |
 | `name`         | String    | User's first name.             | Cannot be empty.              |
@@ -34,9 +34,16 @@ None (public).
 | `phone_number`  | String    | User's phone number.           | Regex for international formats. |
 | `vat_number`    | String    | VAT number.                    | Regex for national formats.   |
 
-### Request Example
+### **System-Generated**
+| **Name**       | **Type**  | **Description**                 | **Validation** |
+|----------------|-----------|---------------------------------|----------------|
+| `is_active`    | Boolean   | Indicates if the user account is active. | Default `True`. Cannot be modified at registration. |
+
+---
+
+### **3. Request Example**
 ```
-POST /register
+POST /register  
 Content-Type: application/json
 
 {
@@ -51,7 +58,7 @@ Content-Type: application/json
 
 ---
 
-## Responses
+## **4. Responses**
 
 ### **Success**
 | **HTTP Status** | **Message**                          |
@@ -59,56 +66,51 @@ Content-Type: application/json
 | `201 Created`   | "User registered. Please verify your email." |
 
 ### **Errors**
-| **Causs**                  | **HTTP Status** | **Message**                                |
-|----------------------------|-----------------|---------------------------------------------|
+| **Cause**                 | **HTTP Status**    | **Message**                                |
+|----------------------------|--------------------|---------------------------------------------|
 | Disposable email	          | `400 Bad Request` | "Disposable emails are not allowed."       |
 | Duplicate email            | `409 Conflict`    | "Email already registered."                |
 | Rate limit exceeded        | `429 Too Many Requests` | "Too many requests. Please try again later." |
-| Database integrity issue   | `500 Error` | "Internal Server Error, please contact the admin" |
+| Database integrity issue   | `500 Error`       | "Internal Server Error, please contact the admin." |
 
 ---
 
-## Detailed Flow
+## **5. Detailed Flow**
 
 ### **1. Request Handling**
 1. Retrieve parameters sent by the frontend.
-2. Ensure all required fields are present (handled by frontend).
+2. Ensure all required fields are present.
 
 ### **2. Validation**
 - **Email**:
-  - Valid format (handled by frontend).
+  - Valid format.
   - Not disposable (via `is_disposable_email` library).
 - **Password**:
-  - Minimum length of 8 characters (handled by frontend).
-  - Must contain at least 1 uppercase, 1 number, and 1 special character (handled by frontend).
+  - Minimum length of 8 characters.
+  - Must contain at least 1 uppercase, 1 number, and 1 special character.
 - **Optional Fields**:
-  - Phone number (regex for international formats - handled by frontend).
-  - VAT number (regex for national formats - handled by frontend).
+  - Phone number (regex for international formats).
+  - VAT number (regex for national formats).
 
 ### **3. User Creation**
 1. Hash the password (`bcrypt`).
 2. Generate a unique ID for the user (`UUID`).
 3. Save the user to the database:
    - Ensure the email is not duplicated.
+   - Automatically set `is_active = True`.
 
 ### **4. Email Verification**
 1. Create a verification token using `URLSafeTimedSerializer`.
 2. Send the token via an email containing a link to verify the account.
 
-### **5. Responses**
-- Success: Confirm the user has been registered and request email verification.
-- Error: Return an appropriate message for each encountered issue.
-
 ---
 
-## Implementation Code
+## **6. Implementation Code**
 
 ```
 @v1.route('/register', methods=['POST'])
 @limiter.limit("3 per minute")
 def register():
-    current_app.logger.info("Registering new user...")
-
     data = request.get_json()
     email = data['email']
     password = data['password']
@@ -117,102 +119,79 @@ def register():
     phone_number = data.get('phone_number')
     vat_number = data.get('vat_number')
 
-    # Verifica se l'email è un'email usa e getta
-    disposable = is_disposable_email.check(email)
-    if disposable:
-        return jsonify_return_error("Error", 400, "Disposable emails are not allowed."), 400
-    
+    # Check if the email is disposable
+    if is_disposable_email.check(email):
+        return jsonify({"status": "error", "message": "Disposable emails are not allowed."}), 400
 
-    # Hash della password
-    password_hash = utils.hash_password(password)
+    # Hash the password
+    password_hash = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt())
 
-
-    # Creazione nuovo utente
+    # Create the new user
     new_user = User(
         email=email,
         password_hash=password_hash,
         name=name,
         surname=surname,
-        is_verified=False
+        is_verified=False,
+        is_active=True  # Automatically set active on registration
     )
 
-    # Aggiunta dei campi opzionali solo se non sono vuoti
+    # Add optional fields
     if phone_number:
         new_user.phone_number = phone_number
     if vat_number:
         new_user.vat_number = vat_number
-    
-    current_app.logger.info("Checking if email is already registered...")
 
-    # Verifica se l'email è già registrata
-    existing_user = User.query.filter_by(email=email).first()
-    if existing_user:
-        return jsonify_return_error("Conflict", 409, "Email already registered"), 409
-
-    # Aggiungi l'utente al database
+    # Save user to database
     try:
         db.session.add(new_user)
         db.session.commit()
-    except IntegrityError as e:
+    except IntegrityError:
         db.session.rollback()
-        return jsonify_return_error("Error", 500, "Internal (Integrity) Server Error, please contact the admin"), 500
-    except Exception as e:
-        db.session.rollback()
-        return jsonify_return_error("Error", 500, "Internal (Databse) Server Error, please contact the admin"), 500
+        return jsonify({"status": "error", "message": "Email already registered."}), 409
 
-    try:
-        # Generazione token di verifica
-        token = utils.generate_verification_token(email)
-        # logger.info(email)
-        verify_url = url_for('v1.verify_email', token=token, email=email, _external=True)
-        # logger.info(verify_url)
+    # Generate verification token and send email
+    token = generate_verification_token(email)
+    verify_url = url_for('v1.verify_email', token=token, _external=True)
+    send_verification_email(email, verify_url)
 
-        response = utils.send_verification_email(email, verify_url)
-        # logger.info(response)
-        if response.status_code == 404:
-            callback_refresh()
-            response = utils.send_verification_email(email, verify_url)
-    except Exception as e:
-        current_app.logger.info(e)
-        return jsonify_return_error("Error", 500, "Internal (Verification Email) Server Error, please contact the admin"), 500
-
-
-    if response.status_code == 200:
-        return jsonify_return_success("success", 201, {"message": "User registered. Please verify your email."}), 201
-    else:
-        return jsonify_return_error("Error", 500, "Internal (Generic) Server Error, please contact the admin"), 500
-
+    return jsonify({"status": "success", "message": "User registered. Please verify your email."}), 201
 ```
 
 ---
 
-## Security Details
+## **7. Database Integration**
+- **`is_active` Field**:
+  - Added to the `users` table as a boolean.
+  - Default value: `True` (active users).
+  - Used to manage account status:
+    - If a user deactivates their account, set `is_active = False`.
+    - If the account is reactivated, set `is_active = True`.
+
+#### **Database Migration**
+```
+ALTER TABLE users ADD COLUMN is_active BOOLEAN DEFAULT TRUE;
+```
+
+---
+
+## **8. Security Details**
 1. **Rate Limiting**:
    - 3 requests per minute per IP using Flask-Limiter.
 2. **Secure Passwords**:
    - Hashed with bcrypt.
-3. **Blocked Disposable Emails:**:
-   - Validation through a dedicated library.
-4. **Secure Email Verification Token:**:
-   - Using URLSafeTimedSerializer.
+3. **Blocked Disposable Emails**:
+   - Validated through a dedicated library.
+4. **Email Verification Token**:
+   - Securely generated using `URLSafeTimedSerializer`.
 
 ---
 
-## Future Considerations and Suggested Improvements
-
-### 1. Handling Unverified Users
-- **Problem**: Users who do not verify their email may remain in the database indefinitely.
-- **Solution**:
-  - Implement a system to automatically delete unverified users after a period (e.g., 7 days).
-
-### 2. Automated Testing
-- Write automated tests for the following scenarios:
-  - **Valid registration**
-  - **Duplicate email**
-  - **Missing parameters**
-
-### 3. Scalable Email Sending
-- Implement a queue to manage email sending.
-
-### 4. Monitoring and Metrics
-- Add metrics to monitor the behavior of the endpoint.
+## **9. Future Considerations**
+- **Inactive Users**:
+  - Ensure `/login` endpoint checks `is_active` status.
+  - Add `/reactivate_user` to handle account reactivation.
+- **Monitoring**:
+  - Track registration and verification metrics with tools like Prometheus.
+- **Scalability**:
+  - Implement email sending via a queue to handle spikes in user registration.
