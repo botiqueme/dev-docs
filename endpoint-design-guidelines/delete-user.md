@@ -1,10 +1,11 @@
+
 # Endpoint: `/delete_user`
 
 ## 1. Details
 - **Endpoint**: `/delete_user`
 - **Method**: `DELETE`
 - **Authentication**: Requires a JWT token to authenticate and authorize the user.
-- **Purpose**: Allow users to delete their account and related data, with an option for temporary deactivation (soft delete) or permanent deletion (hard delete).
+- **Purpose**: Allows users to delete their account and related data, with an option for temporary deactivation (soft delete) or permanent deletion (hard delete).
 
 ---
 
@@ -57,7 +58,7 @@ Content-Type: application/json
 
 | **HTTP Status** | **Message**                                                                |
 |-----------------|----------------------------------------------------------------------------|
-| `200 OK`        | "Account deactivated. Data will be retained for 6 months." (for soft delete)|
+| `200 OK`        | "Account deactivated. Data will be retained for 6 months." (for soft delete) |
 | `200 OK`        | "Account and all data have been permanently deleted." (for hard delete)    |
 
 ### Errors
@@ -73,7 +74,7 @@ Content-Type: application/json
 
 ## 5. Implementation Code
 
-```python
+```
 @v1.route('/delete_user', methods=['DELETE'])
 def delete_user():
     # Authentication via JWT token
@@ -173,3 +174,4 @@ This process involves handling the data of a deactivated user, which is retained
 7. **GDPR Compliance**:
    - This process ensures that the platform is compliant with GDPR’s "right to be forgotten" by giving the user the option to permanently delete their data or retain it for a period before removal.
    - The user can also request their data to be deleted before the 6-month period if they choose not to retain it.
+
