@@ -76,51 +76,52 @@ Content-Type: application/json
 
 ```
 @v1.route('/delete_user', methods=['DELETE'])
-def delete_user():
-    # Authentication via JWT token
-    auth_header = request.headers.get('Authorization')
-    if not auth_header:
-        return jsonify_return_error("error", 401, "Authorization token required."), 401
+@jwt_required()
+def delete_user(delete_type='soft'):
+    """
+    Endpoint per cancellare l'utente dal sistema.
+    delete_type = 'soft' - soft delete, retain in DB for 6 months
+                = 'hard' - hard delete, completely eliminate users info
+    Richiede autenticazione tramite JWT.
+    """
+    user_ip = utils.get_client_ip(request)
+    current_app.logger.info(f"{user_ip} - /delete_user Deleting user info.")
 
     try:
-        token = auth_header.split(" ")[1]
-        payload = jwt.decode(token, current_app.config['SECRET_KEY'], algorithms=['HS256'])
-        user_id = payload['user_id']
-    except Exception:
-        return jsonify_return_error("error", 401, "Invalid token"), 401
+        # Ottieni l'identità dell'utente dal refresh token
+        current_user_id = get_jwt_identity()
 
-    # Retrieve the user
-    user = User.query.filter_by(user_id=user_id).first()
-    if not user:
-        return jsonify_return_error("error", 404, "User not found"), 404
+        # verifica dell'utente
+        # Esegui una query per trovare l'utente nel database
+        current_user = User.query.filter_by(user_id=current_user_id).first()
 
-    # Retrieve data from the request
-    data = request.get_json()
-    delete_type = data.get('delete_type', 'soft')  # Default to 'soft' if not specified
+        if current_user is None:
+            current_app.logger.info(f"{user_ip} - /delete_user User not found")
+            return utils.jsonify_return_error("error", 404, "User not found"), 404
 
-    # Validate the 'delete_type' parameter
-    if delete_type not in ['soft', 'hard']:
-        return jsonify_return_error("error", 400, "Invalid 'delete_type'. Please specify 'soft' or 'hard'."), 400
-
-    # Soft delete (temporary deactivation)
-    if delete_type == 'soft':
-        user.is_active = False  # Deactivate the user
-        db.session.commit()
-        return jsonify({
-            "status": "success",
-            "code": 200,
-            "message": "Account deactivated. Data will be retained for 6 months."
-        }), 200
-
-    # Hard delete (permanent deletion)
-    if delete_type == 'hard':
-        db.session.delete(user)  # Permanently delete the user and their data
-        db.session.commit()
-        return jsonify({
-            "status": "success",
-            "code": 200,
-            "message": "Account and all data have been permanently deleted."
-        }), 200
+        if delete_type not in ['soft', 'hard']:
+            current_app.logger.info(f"{user_ip} - /delete_user Invalid 'delete_type'.")
+            return utils.jsonify_return_error("error", 400, "Invalid 'delete_type'. Please specify 'soft' or 'hard'."), 400
+        
+        #Soft delete
+        if delete_type == 'soft':
+            current_user.is_active = False
+            db.session.commit()
+            current_app.logger.info(f"{user_ip} - /delete_user success SOFT delete user")
+            return utils.jsonify_return_success("OK", 200, {"message": "Account deactivated. Data will be retained for 6 months."}), 200
+        
+        #Hard delete
+        if delete_type == 'hard':
+            db.session.delete(current_user)
+            db.session.commit()
+            current_app.logger.info(f"{user_ip} - /delete_user success HARD delete user")
+            return utils.jsonify_return_success("OK", 200, {"message": "Account and all data have been permanently deleted."}), 200
+        
+    except Exception as e:
+        # Gestione degli errori imprevisti
+        current_app.logger.error(f"{user_ip} - /delete_user Internal Server Error. {e}")
+        return utils.jsonify_return_error("error", 500, "Internal Server Error."), 500
+            
 ```
 
 ---
