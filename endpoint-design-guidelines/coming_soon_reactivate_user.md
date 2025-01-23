@@ -72,48 +72,53 @@ Authorization: Bearer <JWT_TOKEN>
 ## **Implementation Code**
 ```
 @v1.route('/reactivate_user', methods=['PATCH'])
-@limiter.limit("3 per hour")  # Rate limiting: 3 attempts per hour
+@limiter.limit("3 per hour")
+@jwt_required()
 def reactivate_user():
-    # Extract JWT token
-    auth_header = request.headers.get('Authorization')
-    if not auth_header:
-        return jsonify({"status": "error", "code": 401, "message": "Authorization token required."}), 401
+    """
+    Endpoint per riattivare l'utente nel sistema.
+    Richiede autenticazione tramite JWT.
+    """
+    user_ip = utils.get_client_ip(request)
+    current_app.logger.info(f"{user_ip} - /reactivate_user Reactivating user.")
 
     try:
-        token = auth_header.split(" ")[1]
-        payload = jwt.decode(token, current_app.config['SECRET_KEY'], algorithms=['HS256'])
-        user_id = payload['user_id']
-    except Exception:
-        return jsonify({"status": "error", "code": 401, "message": "Invalid token."}), 401
+        # Ottieni l'identità dell'utente dal refresh token
+        current_user_id = get_jwt_identity()
 
-    # Retrieve user from the database
-    user = User.query.filter_by(user_id=user_id).first()
-    if not user:
-        return jsonify({"status": "error", "code": 404, "message": "User not found."}), 404
+        # verifica dell'utente
+        # Esegui una query per trovare l'utente nel database
+        current_user = User.query.filter_by(user_id=current_user_id).first()
 
-    # Check if the user is already active
-    if user.is_active:
-        return jsonify({"status": "error", "code": 409, "message": "User is already active."}), 409
+        if current_user is None:
+            current_app.logger.info(f"{user_ip} - /reactivate_user User not found")
+            return utils.jsonify_return_error("error", 404, "User not found"), 404
 
-    # Reactivate the user
-    user.is_active = True
-    user.reactivation_timestamp = datetime.utcnow()
-    db.session.commit()
+        if current_user.is_active:
+            current_app.logger.info(f"{user_ip} - /reactivate_user User is already active.")
+            return utils.jsonify_return_error("error", 409, "User is already active."), 409
+        
+        #reactivate the user
+        current_user.is_active = True
+        db.session.commit()        
 
-    # Restore chatbot data (Subscription must be renewed separately)
-    restore_chatbot_data(user_id)
+        # Restore chatbot data (Subscription must be renewed separately)
+        # restore_chatbot_data(user_id)
 
-    # Logging reactivation attempt
-    logger.info(f"User {user_id} reactivated at {user.reactivation_timestamp}")
+        # Send reactivation confirmation email
+        response = utils.send_generic_email(current_user.email, "Your account has been reactivated", "Your chatbot data has been restored, but you need to renew your subscription.")
+        if response.status_code == 404:
+            callback_refresh()
+            response = utils.send_generic_email(current_user.email, "Your account has been reactivated", "Your chatbot data has been restored, but you need to renew your subscription.")
 
-    # Send reactivation confirmation email
-    send_email(user.email, "Your account has been reactivated", "Your chatbot data has been restored, but you need to renew your subscription.")
-
-    return jsonify({
-        "status": "success",
-        "code": 200,
-        "message": "User reactivated successfully. Chatbot data restored. Subscription must be renewed separately."
-    }), 200
+        # Restituisci la risposta formattata
+        current_app.logger.info(f"{user_ip} - /reactivate_user success reactivating user")
+        return utils.jsonify_return_success("success", 200, {"message":"User reactivated successfully. Chatbot data restored. Subscription must be renewed separately."}), 200
+    
+    except Exception as e:
+        # Gestione degli errori imprevisti
+        current_app.logger.error(f"{user_ip} - /reactivate_user Internal Server Error. {e}")
+        return utils.jsonify_return_error("error", 500, "Internal Server Error."), 500
 ```
 
 ---
