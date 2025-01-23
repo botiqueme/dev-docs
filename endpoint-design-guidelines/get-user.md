@@ -132,40 +132,50 @@ Authorization: Bearer <jwt_token>
 
 ```python
 @v1.route('/get_user', methods=['GET'])
+@jwt_required()
 def get_user():
-    # Authentication via JWT
-    auth_header = request.headers.get('Authorization')
-    if not auth_header:
-        return jsonify_return_error("error", 401, "Authorization token required"), 401
+    """
+    Endpoint per ottenere le informazioni dell'utente.
+    Richiede autenticazione tramite JWT.
+    """
+    user_ip = utils.get_client_ip(request)
+    current_app.logger.info(f"{user_ip} - /get_user Updating user info.")
 
     try:
-        token = auth_header.split(" ")[1]
-        payload = jwt.decode(token, current_app.config['SECRET_KEY'], algorithms=['HS256'])
-        user_id = payload['user_id']
-    except Exception:
-        return jsonify_return_error("error", 401, "Invalid token"), 401
+        # Ottieni l'identità dell'utente dal refresh token
+        current_user_id = get_jwt_identity()
 
-    # Retrieve user from database
-    user = User.query.filter_by(user_id=user_id).first()
-    if not user:
-        return jsonify_return_error("error", 404, "User not found"), 404
+        # verifica dell'utente
+        # Esegui una query per trovare l'utente nel database
+        current_user = User.query.filter_by(user_id=current_user_id).first()
 
-    # Check if the user is active
-    if not user.is_active:
-        return jsonify_return_error("error", 403, "User account is inactive. Please contact support."), 403
+        if current_user is None:
+            current_app.logger.info(f"{user_ip} - /get_user User not found")
+            return utils.jsonify_return_error("error", 404, "User not found"), 404
+        if not current_user.is_active:
+            current_app.logger.info(f"{user_ip} - /get_user Account is inactive. Please contact support.")
+            return utils.jsonify_return_error("error", 403, "Account is inactive. Please contact support."), 403
+        
+            # Prepara i dati della risposta
+        data = {
+            "user_id": current_user.user_id,
+            "email": current_user.email,
+            "name": current_user.name,
+            "surname": current_user.surname,
+            "phone_number": current_user.phone_number,
+            "vat_number": current_user.vat_number,
+            "is_verified": current_user.is_verified,
+            "is_active": current_user.is_active
+        }
 
-    # Return user data
-    return jsonify_return_success("success", 200, {
-        "user_id": user.user_id,
-        "email": user.email,
-        "name": user.name,
-        "surname": user.surname,
-        "phone_number": user.phone_number,
-        "company": user.company,
-        "vat_number": user.vat_number,
-        "is_verified": user.is_verified,
-        "is_active": user.is_active
-    })
+        # Restituisci la risposta formattata
+        current_app.logger.info(f"{user_ip} - /get_user success refreshing token")
+        return utils.jsonify_return_success("success", 200, data), 200
+    
+    except Exception as e:
+        # Gestione degli errori imprevisti
+        current_app.logger.error(f"{user_ip} - /get_user Internal Server Error. {e}")
+        return utils.jsonify_return_error("error", 500, "Internal Server Error."), 500
 ```
 
 ---
