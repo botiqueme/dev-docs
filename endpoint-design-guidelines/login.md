@@ -1,6 +1,4 @@
-
-
-# **Endpoint: `/login`**
+## **Endpoint: `/login`**
 
 ## **1. Details**
 - **Endpoint**: `/login`
@@ -20,6 +18,9 @@ The request body must be in JSON format:
 
 ### **Example Request**
 ```
+POST /login
+Content-Type: application/json
+
 {
   "email": "user@example.com",
   "password": "mypassword"
@@ -74,6 +75,7 @@ def login():
    - Create an access token (`JWT`) with:
      - `user_id`: The user's unique ID.
      - `email`: The user's email.
+     - `is_active`: The current user status.
      - `exp`: Token expiration (e.g., 1 hour).
    - Sign the token with the backend's secret key.
 
@@ -228,6 +230,3 @@ def login():
 4. **Enhanced User Feedback (**optional improvement**)**:
    - Include the remaining number of attempts before blocking in error responses to improve user experience.
 
----
-
-This version **correctly integrates `is_active`** while keeping the structure **intact**. Let me know if you need adjustments. 🚀
