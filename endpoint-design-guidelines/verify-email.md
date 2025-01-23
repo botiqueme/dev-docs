@@ -1,314 +1,275 @@
-# Endpoint Documentation: `/verify_email`
+# **Endpoint: `/verify_email`**
 
-## Purpose
-Validate a user's email through a unique token generated during registration.
-
-## Technical Specifications
-
-### Method
-- **GET**
-
-### URL
-- `/verify_email`
-- 
-### Authentication
-- None (public).
-
-### Parameters
-
-| Parameter | Type   | Required | Description                              |
-|-----------|--------|----------|------------------------------------------|
-| token     | String | Yes      | Unique token to verify the email address.|
+## **Purpose**
+Validates a user's email using a unique token generated at registration.
 
 ---
 
-## Endpoint Logic
+## **1. Technical Specifications**
+
+### **Method**
+- **GET**
+
+### **URL**
+- `/verify_email`
+
+### **Authentication**
+- None (public).
+
+### **Parameters**
+| **Parameter** | **Type** | **Required** | **Description** |
+|--------------|---------|------------|--------------------------------------------------|
+| `token` | String | Yes | Unique token used to verify the email address. |
+
+---
+
+## **2. Endpoint Logic**
 1. **Token Validation**:
    - Check if the token is present in the request.
    - Verify the token is not blacklisted.
-   - Decode the token and ensure it is valid (not expired or corrupted).
+   - Decode and validate the token (ensure it's not expired or tampered with).
+
 2. **User Retrieval**:
-   - Use the email decoded from the token to find the user in the database.
-   - Return an error if the user is not found.
-3. **User Status Verification**:
-   - Check if the user is already verified.
-   - If yes, return an error indicating the user is already verified.
+   - Extract the email from the decoded token.
+   - Search for the user in the database using the extracted email.
+   - Return an error if the user does not exist.
+
+3. **User Status Check (`is_verified` and `is_active`)**:
+   - If the user is already verified, return an error.
+   - **If `is_active = False`, re-enable the account (`is_active = True`).**
+
 4. **Status Update**:
-   - Update the user's `is_verified` field to `True`.
-5. **Logging**:
-   - Log successful and failed verification attempts for monitoring.
+   - Update the `is_verified` field to `True`.
+   - If the user was previously deactivated (`is_active = False`), set `is_active = True`.
 
-## Responses
-
-### Success
-
-| HTTP Status | Message                        |
-|-------------|--------------------------------|
-| 200 OK      | "Email verified successfully." |
-
-
-### Errors
-
-| Cause                  | HTTP Status       | Message                                     |
-|------------------------|-------------------|---------------------------------------------|
-| Missing Token          | 400 Bad Request  | "Missing token."                            |
-| Invalid Token          | 401 Unauthorized | "Invalid token."                            |
-| Expired Token          | 401 Unauthorized | "Expired token."                            |
-| User Not Found         | 404 Not Found    | "User not found."                           |
-| User Already Verified  | 409 Conflict     | "User is already verified."                 |
-| Rate Limit Exceeded    | 429 Too Many Requests | "Too many attempts. Try again later."    |
+5. **Logging & Token Blacklisting**:
+   - Log all verification attempts (successful and failed).
+   - Add the used token to the blacklist to prevent reuse.
 
 ---
 
-## Codice di Implementazione
+## **3. Responses**
 
+### ✅ **Success**
+| **HTTP Status** | **Message** |
+|---------------|------------------------------|
+| `200 OK` | "Email verified successfully." |
+
+**Example Response:**
+```json
+{
+  "status": "success",
+  "code": 200,
+  "message": "Email verified successfully."
+}
 ```
+
+---
+
+### ❌ **Errors**
+#### **1️⃣ Missing Token**
+| **HTTP Status** | **Message** |
+|---------------|------------------------------|
+| `400 Bad Request` | "Missing token." |
+
+```json
+{
+  "status": "error",
+  "code": 400,
+  "message": "Missing token."
+}
+```
+
+---
+
+#### **2️⃣ Invalid Token**
+| **HTTP Status** | **Message** |
+|---------------|------------------------------|
+| `401 Unauthorized` | "Invalid token." |
+
+```json
+{
+  "status": "error",
+  "code": 401,
+  "message": "Invalid token."
+}
+```
+
+---
+
+#### **3️⃣ Expired Token**
+| **HTTP Status** | **Message** |
+|---------------|------------------------------|
+| `401 Unauthorized` | "Expired token." |
+
+```json
+{
+  "status": "error",
+  "code": 401,
+  "message": "Expired token."
+}
+```
+
+---
+
+#### **4️⃣ User Not Found**
+| **HTTP Status** | **Message** |
+|---------------|------------------------------|
+| `404 Not Found` | "User not found." |
+
+```json
+{
+  "status": "error",
+  "code": 404,
+  "message": "User not found."
+}
+```
+
+---
+
+#### **5️⃣ User Already Verified**
+| **HTTP Status** | **Message** |
+|---------------|------------------------------|
+| `409 Conflict` | "User is already verified." |
+
+```json
+{
+  "status": "error",
+  "code": 409,
+  "message": "User is already verified."
+}
+```
+
+---
+
+## **4. Updated Code Implementation**
+
+```python
 @v1.route('/verify_email/<token>', methods=['GET'])
 @limiter.limit("5 per minute", override_defaults=False, deduct_when=lambda resp: resp.status_code == 200)
 @limiter.limit("3 per minute", override_defaults=False, deduct_when=lambda resp: resp.status_code != 200)
 def verify_email(token):
-    # Controllo presenza del token
+    # Check if token is provided
     if not token:
-        return jsonify({"Bad Request": "Missing token."}), 400
-    
-    # Controlla se il token è nella blacklist
+        return jsonify({"error": "Missing token."}), 400
+
+    # Check if token is blacklisted
     if BlacklistToken.query.filter_by(token=token).first():
-        # Verifica il tipo di risposta preferito dal client
-        if request.accept_mimetypes.accept_json and not request.accept_mimetypes.accept_html:
-            return jsonify({"Unauthorized": "Blacklisted token."}), 401
-        else:
-            return redirect(url_for('v1.invalid_token'))
-    
+        return jsonify({"error": "Blacklisted token."}), 401
+
     try:
+        # Decode the token
         serializer = URLSafeTimedSerializer(current_app.config['SECRET_KEY'])
         email = serializer.loads(
             token,
             salt=current_app.config['SECURITY_PASSWORD_SALT'],
-            max_age=86400  # 24 ore
+            max_age=86400  # 24 hours validity
         )
     except SignatureExpired:
-        # Token scaduto
-        if request.accept_mimetypes.accept_json and not request.accept_mimetypes.accept_html:
-            return jsonify({"Unauthorized": "Expired token."}), 401
-        else:
-            return redirect(url_for('v1.expired_token', email=email))
+        return jsonify({"error": "Expired token."}), 401
     except BadSignature:
-        # Token non valido
-        if request.accept_mimetypes.accept_json and not request.accept_mimetypes.accept_html:
-            return jsonify({"Unauthorized": "Invalid token."}), 401
-        else:
-            return redirect(url_for('v1.invalid_token'))
+        return jsonify({"error": "Invalid token."}), 401
 
-    # Verifica utente nel database
+    # Retrieve user from database
     user = User.query.filter_by(email=email).first()
     if user is None:
-        if request.accept_mimetypes.accept_json and not request.accept_mimetypes.accept_html:
-            return jsonify({"Not Found": "User not found."}), 404
-        else:
-            return redirect(url_for('v1.user_not_found'))
-    if user.is_verified:
-        if request.accept_mimetypes.accept_json and not request.accept_mimetypes.accept_html:
-            return jsonify({"Conflict": "User is already verified."}), 409
-        else:
-            return redirect(url_for('v1.verified_token'))
+        return jsonify({"error": "User not found."}), 404
 
-    # Aggiorna stato di verifica
+    # Check if the user is already verified
+    if user.is_verified:
+        return jsonify({"error": "User is already verified."}), 409
+
+    # Update user verification status
     user.is_verified = True
+
+    # Reactivate the user if previously deactivated
+    if not user.is_active:
+        user.is_active = True
+
     db.session.commit()
 
-    # Aggiungi il token alla blacklist
+    # Blacklist the used token
     new_blacklist_entry = BlacklistToken(token=token)
     db.session.add(new_blacklist_entry)
     db.session.commit()
 
-    if request.accept_mimetypes.accept_json and not request.accept_mimetypes.accept_html:
-        return jsonify({"OK": "Email verified successfully."}), 200
-    else:
-        return redirect(url_for('v1.verified_token'))
+    return jsonify({"success": "Email verified successfully."}), 200
 ```
 
-## Next Steps for the `/verify_email` Endpoint
-
-### 1. Comprehensive Monitoring (optional improvement)
-
-**Objective**  
-Integrate tools like Prometheus or Grafana to collect and analyze detailed metrics on email verifications.
-
-**Necessary Actions**  
-- **Configure Prometheus Flask Exporter**:
-    - Collect metrics such as:
-        - Number of successful verifications.
-        - Failed attempts (e.g., invalid or expired tokens).
-        - Frequency of invalidated tokens.
-- **Integrate Grafana**:
-    - Create dashboards to visualize the metrics collected from Prometheus.
-    - Add charts to monitor email verification trends.
-
-### 2. Frontend Page (optional improvement)
-
-**Objective**  
-Enhance user experience by providing a dedicated page with visual feedback based on the verification status.
-
-**Necessary Actions**  
-- Create an HTML page for the following states:
-    - **Success**: "Your email has been successfully verified."
-    - **Expired Token**: "The link has expired. Request a new token."
-        - Button: "Request New Token" (linked to `/resend_verification`).
-    - **Invalid Token**: "Error during verification. Please contact support."
-
 ---
-### 3. Automated Testing (optional improvement)
 
+## **5. Next Steps for the `/verify_email` Endpoint**
 
-markdown
-Copia codice
-# Endpoint Documentation: `/verify_email`
+### **1️⃣ Reactivation Upon Verification**
+✅ **Added logic to re-enable inactive accounts (`is_active = True`).**  
+✅ **Ensures that users who verify their email regain access to the platform.**
 
 ---
 
-## Purpose
-Validate a user's email through a unique token generated during registration.
+### **2️⃣ Comprehensive Monitoring (optional improvement)**
+
+#### **Objective**  
+Integrate Prometheus or Grafana to track verification trends.
+
+#### **Actions**
+- **Collect Metrics**:
+  - Number of successful verifications.
+  - Failed attempts due to invalid/expired tokens.
+  - Frequency of blacklisted tokens.
+- **Visualization**:
+  - Set up dashboards to display verification patterns.
 
 ---
 
-## Technical Specifications
+### **3️⃣ Frontend Page for Better UX (optional improvement)**
 
-### Method
-- **GET**
+#### **Objective**  
+Improve user experience with a verification status page.
 
-### URL
-- `/verify_email`
-
-### Authentication
-- None (public).
-
-### Parameters
-
-| Parameter | Type   | Required | Description                              |
-|-----------|--------|----------|------------------------------------------|
-| token     | String | Yes      | Unique token to verify the email address.|
+#### **Actions**
+- **Create an HTML page**:
+  - **Success**: "Your email has been successfully verified."
+  - **Expired Token**: "The link has expired. Request a new one."
+  - **Invalid Token**: "Error during verification. Contact support."
 
 ---
 
-## Endpoint Logic
-1. **Token Validation**:
-   - Check if the token is present in the request.
-   - Verify the token is not blacklisted.
-   - Decode the token and ensure it is valid (not expired or corrupted).
-2. **User Retrieval**:
-   - Use the email decoded from the token to find the user in the database.
-   - Return an error if the user is not found.
-3. **User Status Verification**:
-   - Check if the user is already verified.
-   - If yes, return an error indicating the user is already verified.
-4. **Status Update**:
-   - Update the user's `is_verified` field to `True`.
-5. **Logging**:
-   - Log successful and failed verification attempts for monitoring.
+### **4️⃣ Automated Testing (optional improvement)**
+
+#### **Objective**  
+Ensure correctness across various verification scenarios.
+
+#### **Actions**
+- **Test cases**:
+  - ✅ Successful verification with a valid token.
+  - ❌ Attempting to verify with an expired/invalid token.
+  - ❌ Blacklisted token rejection.
+  - ❌ Rate limit enforcement.
+
+- **Example Unit Test**:
+```python
+def test_verify_email_success(client):
+    response = client.get('/verify_email?token=valid_token')
+    assert response.status_code == 200
+    assert response.json['message'] == "Email verified successfully."
+
+def test_verify_email_blacklisted(client):
+    response = client.get('/verify_email?token=blacklisted_token')
+    assert response.status_code == 401
+    assert response.json['message'] == "Blacklisted token."
+```
 
 ---
 
-## Responses
+### **5️⃣ Scalability & Security Enhancements (optional improvement)**
 
-### Success
+#### **Objective**  
+Ensure the endpoint remains performant at scale.
 
-| HTTP Status | Message                        |
-|-------------|--------------------------------|
-| 200 OK      | "Email verified successfully." |
-
----
-
-### Errors
-
-| Cause                  | HTTP Status       | Message                                     |
-|------------------------|-------------------|---------------------------------------------|
-| Missing Token          | 400 Bad Request  | "Missing token."                            |
-| Invalid Token          | 401 Unauthorized | "Invalid token."                            |
-| Expired Token          | 401 Unauthorized | "Expired token."                            |
-| User Not Found         | 404 Not Found    | "User not found."                           |
-| User Already Verified  | 409 Conflict     | "User is already verified."                 |
-| Rate Limit Exceeded    | 429 Too Many Requests | "Too many attempts. Try again later."    |
-
----
-
-## Next Steps for the `/verify_email` Endpoint
-
-### 1. Comprehensive Monitoring (optional improvement)
-
-**Objective**  
-Integrate tools like Prometheus or Grafana to collect and analyze detailed metrics on email verifications.
-
-**Necessary Actions**  
-- **Configure Prometheus Flask Exporter**:
-    - Collect metrics such as:
-        - Number of successful verifications.
-        - Failed attempts (e.g., invalid or expired tokens).
-        - Frequency of invalidated tokens.
-- **Integrate Grafana**:
-    - Create dashboards to visualize the metrics collected from Prometheus.
-    - Add charts to monitor email verification trends.
-
----
-
-### 2. Frontend Page (optional improvement)
-
-**Objective**  
-Enhance user experience by providing a dedicated page with visual feedback based on the verification status.
-
-**Necessary Actions**  
-- Create an HTML page for the following states:
-    - **Success**: "Your email has been successfully verified."
-    - **Expired Token**: "The link has expired. Request a new token."
-        - Button: "Request New Token" (linked to `/resend_verification`).
-    - **Invalid Token**: "Error during verification. Please contact support."
-
----
-
-### 3. Automated Testing (optional improvement)
-
-**Objective**  
-Ensure the quality and correct functioning of the endpoint in all use cases.
-
-**Necessary Actions**  
-- Create unit and integration tests to cover:
-    - Valid Tokens:
-        - Test that a valid token successfully verifies the user.
-    - Invalid Tokens:
-        - Test for expired or invalid signatures.
-    - Blacklist:
-        - Ensure blacklisted tokens are rejected.
-    - Rate Limiting:
-        - Validate correct application of rate limits (e.g., 5 requests per minute for valid tokens, 3 for invalid tokens).
-
-- **Esempio di test**:
-    ```
-    def test_verify_email_success(client):
-        response = client.get('/verify_email?token=valid_token')
-        assert response.status_code == 200
-        assert response.json['message'] == "Email verified successfully."
-
-    def test_verify_email_blacklisted(client):
-        response = client.get('/verify_email?token=blacklisted_token')
-        assert response.status_code == 401
-        assert response.json['message'] == "Token invalidated."
-    ```
-
-### 4. Scalability Optimization (optional improvement)
-
-**Objective**  
-Ensure the system remains performant in environments with high concurrent requests.
-
-**Necessary Actions**  
-- **Distributed Blacklist**:
-    - Use a distributed system like Redis to synchronize the blacklist across multiple backend instances.
+#### **Actions**
+- **Distributed Blacklist Storage**:
+  - Use **Redis** to sync blacklisted tokens across instances.
 - **Load Testing**:
-    - Perform load testing with tools like Apache JMeter or k6.
-    - Monitor resource usage during high-intensity testing.
-
-
-## Priorities
-1. **Frontend Page**: Immediately improve user experience.
-2. **Automated Testing**: Ensure system quality and stability.
-3. **Comprehensive Monitoring**: Enable continuous metric analysis.
-4. **Scalability Optimization**: Essential for high-traffic environments.
-
+  - Simulate thousands of requests using **JMeter** or **k6**.
+- **Rate Limit Adjustments**:
+  - Fine-tune request limits based on traffic patterns.
