@@ -1,30 +1,30 @@
-# Endpoint: `/resend_verification`
+# **Endpoint: `/resend_verification`**
 
-## Scopo
-Consente agli utenti di richiedere un nuovo token di verifica email nel caso in cui quello precedente sia scaduto o non valido. Questo endpoint garantisce un'esperienza utente fluida, sicura e conforme ai requisiti di sicurezza.
+## **Purpose**
+Allows users to request a new email verification token if the previous one has expired or is invalid. This endpoint ensures a smooth, secure, and compliant user experience.
 
 ---
 
-## 1. Dettagli Tecnici
+## **1. Technical Details**
 
-### **Metodo**
+### **Method**
 `POST`
 
 ### **URL**
 `/resend_verification`
 
-### **Autenticazione**
-Nessuna (pubblico).
+### **Authentication**
+None (public).
 
 ---
 
-## 2. Parametri della Richiesta
+## **2. Request Parameters**
 
-| **Parametro** | **Tipo**  | **Obbligatorio** | **Descrizione**                             |
-|---------------|-----------|------------------|---------------------------------------------|
-| `email`       | Stringa   | Sì               | L'indirizzo email associato all'account dell'utente. |
+| **Parameter** | **Type**  | **Required** | **Description**                           |
+|--------------|-----------|-------------|-------------------------------------------|
+| `email`      | String    | Yes         | The email address associated with the user account. |
 
-Esempio di richiesta:
+#### **Example Request**
 ```
 {
   "email": "user@example.com"
@@ -33,51 +33,53 @@ Esempio di richiesta:
 
 ---
 
-## 3. Logica dell'Endpoint
+## **3. Endpoint Logic**
 
-### **Fasi Chiave**
-1. **Validazione dell'Input**:
-   - Controllare che l'email sia presente nella richiesta.
+### **Key Steps**
+1. **Input Validation**:
+   - Check that the `email` parameter is provided.
 
-2. **Recupero Utente**:
-   - Cercare nel database l'utente associato all'email.
-   - **Errori Gestiti**:
-     - Utente non trovato.
-     - Utente già verificato.
+2. **User Retrieval**:
+   - Search the database for a user associated with the given email.
+   - **Handle errors**:
+     - User not found.
+     - User already verified.
+     - **User deactivated (`is_active = False`)**.
 
-3. **Stato dell'Utente**:
-   - Se l'utente è già verificato:
-     - Restituire un messaggio indicando che non è necessario rigenerare il token.
+3. **User Status Check**:
+   - If the user is **already verified**, return an appropriate response.
+   - **If the user is deactivated (`is_active = False`)**, block the request and return `403 Forbidden`.
 
-4. **Generazione del Token**:
-   - Utilizzare `URLSafeTimedSerializer` per creare un nuovo token univoco.
-   - Configurare la scadenza (es. 24 ore).
+4. **Token Generation**:
+   - Use `URLSafeTimedSerializer` to create a new unique token.
+   - Configure token expiration (e.g., 24 hours).
 
-5. **Invio del Token via Email**:
-   - Inviare un'email all'utente con il token generato, incluso un link per la verifica.
+5. **Email Delivery**:
+   - Send the verification email containing the token and verification link.
 
 6. **Rate Limiting**:
-   - Limitare a 3 richieste per ora per ciascun indirizzo IP/email.
-   - Implementare logging dettagliato per monitorare tentativi sospetti.
+   - Limit requests to **3 per hour per IP/email**.
+   - Implement detailed logging for suspicious attempts.
 
-7. **Logging e Monitoraggio (miglioria opzionale)**:
-   - Loggare ogni tentativo di rigenerazione (successo/fallimento).
-   - Raccogliere metriche per analisi future.
+7. **Logging & Monitoring (optional improvement)**:
+   - Log every token regeneration attempt (success/failure).
+   - Collect metrics for future analysis.
 
 ---
 
-## 4. Risposte dell'Endpoint
+## **4. Endpoint Responses**
 
-| **Scenario**               | **HTTP Status**   | **Messaggio**                                |
-|----------------------------|-------------------|---------------------------------------------|
-| **Successo**               | `200 OK`         | "Verification email resent."                |
-| **Email Mancante**          | `400 Bad Request` | "Missing email."                            |
-| **Utente Non Trovato**      | `404 Not Found`   | "User not found."                           |
-| **Utente Già Verificato**   | `409 Conflict`    | "User is already verified."                 |
-| **Rate Limit Superato**     | `429 Too Many Requests` | "Too many requests. Please try again later."|
-| **Internal Error**          | `500 Internal Error` | "Internal (Re-send verification) Server Error, please contact the admin"|
+| **Scenario**               | **HTTP Status**   | **Message**                                |
+|----------------------------|-------------------|--------------------------------------------|
+| **Success**                | `200 OK`         | "Verification email resent."              |
+| **Missing Email**          | `400 Bad Request` | "Missing email."                          |
+| **User Not Found**         | `404 Not Found`   | "User not found."                         |
+| **User Already Verified**  | `409 Conflict`    | "User is already verified."               |
+| **User Deactivated**       | `403 Forbidden`   | "Account is inactive. Please contact support." |
+| **Rate Limit Exceeded**    | `429 Too Many Requests` | "Too many requests. Please try again later." |
+| **Internal Error**         | `500 Internal Server Error` | "Internal (Re-send verification) Server Error, please contact the admin." |
 
-Esempio di Risposta Successo:
+#### **Example Success Response**
 ```
 {
   "status": "success",
@@ -88,11 +90,11 @@ Esempio di Risposta Successo:
 
 ---
 
-## 5. Codice Completo
+## **5. Implementation Code**
 
 ```
 @v1.route('/resend_verification', methods=['POST'])
-@limiter.limit("3 per hour")  # Limita a 3 richieste all'ora per utente
+@limiter.limit("3 per hour")  # Limit to 3 requests per hour per user
 def resend_verification():
     """
     Resends a verification email to a user.
@@ -100,74 +102,78 @@ def resend_verification():
     Returns:
         Response: A response with a message and a status code.
     """
-    # Validazione dell'input
+    # Validate input
     email = request.form.get('email')
     if not email:
-        return jsonify({"Bad Request": "Missing email."}), 400
+        return jsonify({"status": "error", "code": 400, "message": "Missing email."}), 400
 
-    # Verifica che l'email esista nel database
+    # Check if email exists in the database
     user = User.query.filter_by(email=email).first()
     if not user:
-        return jsonify({"Not Found": "User not found"}), 404
+        return jsonify({"status": "error", "code": 404, "message": "User not found"}), 404
     
+    # Check if the user is already verified
     if user.is_verified:
-        if request.accept_mimetypes.accept_json and not request.accept_mimetypes.accept_html:
-            return jsonify({"Conflict": "User is already verified."}), 409
-        else:
-            return redirect(url_for('v1.verified_token'))
+        return jsonify({"status": "error", "code": 409, "message": "User is already verified."}), 409
+    
+    # Block request if user is deactivated
+    if not user.is_active:
+        return jsonify({"status": "error", "code": 403, "message": "Account is inactive. Please contact support."}), 403
 
     try:
-        # Generazione token di verifica
+        # Generate a new verification token
         token = utils.generate_verification_token(email)
-        # logger.info(email)
         verify_url = url_for('v1.verify_email', token=token, email=email, _external=True)
-        # logger.info(verify_url)
 
         response = utils.send_verification_email(email, verify_url)
-        # logger.info(response)
         if response.status_code == 404:
             callback_refresh()
             response = utils.send_verification_email(email, verify_url)
     except Exception as e:
         current_app.logger.info(e)
-        return jsonify_return_error("Error", 500, "Internal (Verification Email) Server Error, please contact the admin"), 500
+        return jsonify({"status": "error", "code": 500, "message": "Internal (Re-send verification) Server Error, please contact the admin."}), 500
 
-    return jsonify({"OK": "Verification email resent."}), 200
+    return jsonify({"status": "success", "code": 200, "message": "Verification email resent."}), 200
 ```
 
 ---
 
-## 6. Sicurezza e Migliorie Implementate
+## **6. Security Considerations & Implemented Improvements**
 
 1. **Rate Limiting**:
-   - Configurato per evitare abusi e brute force.
+   - Configured to prevent abuse and brute-force attacks.
 
-2. **Validazione Input**:
-   - Verifica rigorosa del formato email.
+2. **Input Validation**:
+   - Strict email format validation.
 
-3. **Error Handling**:
-   - Gestione dettagliata degli errori per migliorare l'esperienza utente e la sicurezza.
+3. **Handling Deactivated Accounts (`is_active`)**:
+   - **Prevents deactivated users from requesting verification tokens** (`403 Forbidden`).
 
-4. **Logging (miglioria opzionale)**:
-   - Monitoraggio avanzato di successi e fallimenti per analisi e prevenzione di attacchi.
+4. **Error Handling**:
+   - Detailed error handling for improved user experience and security.
+
+5. **Logging (optional improvement)**:
+   - Advanced monitoring of success and failure rates to prevent abuse.
 
 ---
 
-## 7. Prossimi Passi
+## **7. Next Steps**
 
-1. **Test Automatici**:
-   - Testare:
-     - Email mancante.
-     - Utente non trovato.
-     - Utente già verificato.
-     - Rate limiting.
+1. **Automated Testing**:
+   - Test cases:
+     - Missing email.
+     - User not found.
+     - User already verified.
+     - User deactivated (`is_active = False`).
+     - Rate limit enforcement.
 
-2. **Monitoraggio Avanzato (miglioria opzionale)**:
-   - Integrare strumenti come Prometheus per raccogliere metriche:
-     - Numero di email rigenerate.
-     - Frequenza di errori.
+2. **Advanced Monitoring (optional improvement)**:
+   - Integrate **Prometheus** to collect metrics:
+     - Number of email resends.
+     - Frequency of errors.
 
-3. **Integrazione Frontend**:
-   - Creare una pagina per notificare l'utente sullo stato della richiesta:
-     - "Link di verifica inviato."
-     - "Errore durante la rigenerazione del token."
+3. **Frontend Integration**:
+   - Create a UI to notify users about request status:
+     - "Verification link sent."
+     - "Error during token regeneration."
+     - "Account deactivated, please contact support."
