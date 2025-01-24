@@ -1,12 +1,11 @@
+# **Endpoint: `/get_user`**
 
-# Endpoint: `/get_user`
-
-## Purpose
+## **Purpose**
 This endpoint retrieves the details of an authenticated user, allowing them to view their profile information.
 
 ---
 
-## 1. Technical Details
+## **1. Technical Details**
 
 ### **Method**
 `GET`
@@ -19,7 +18,7 @@ Requires a valid JWT token to identify and authorize the user.
 
 ---
 
-## 2. Parameters
+## **2. Parameters**
 
 No request body parameters.
 
@@ -33,7 +32,7 @@ Authorization: Bearer <jwt_token>
 
 ---
 
-## 3. Logic
+## **3. Logic**
 
 ### **1. Authentication**
 - Retrieve the JWT from the `Authorization` header.
@@ -52,9 +51,9 @@ Authorization: Bearer <jwt_token>
 
 ---
 
-## 4. Responses
+## **4. Responses**
 
-### **Success**
+### ✅ **Success**
 | **HTTP Status** | **Message**                           |
 |-----------------|---------------------------------------|
 | `200 OK`        | User data successfully retrieved.     |
@@ -80,7 +79,7 @@ Authorization: Bearer <jwt_token>
 
 ---
 
-### **Error: Inactive User**
+### ❌ **Error: Inactive User**
 | **HTTP Status** | **Message**                           |
 |-----------------|---------------------------------------|
 | `403 Forbidden` | User account is inactive.             |
@@ -96,7 +95,7 @@ Authorization: Bearer <jwt_token>
 
 ---
 
-### **Error: User Not Found**
+### ❌ **Error: User Not Found**
 | **HTTP Status** | **Message**                           |
 |-----------------|---------------------------------------|
 | `404 Not Found` | User not found.                       |
@@ -112,7 +111,7 @@ Authorization: Bearer <jwt_token>
 
 ---
 
-### **Error: Unauthorized**
+### ❌ **Error: Unauthorized**
 | **HTTP Status** | **Message**                           |
 |-----------------|---------------------------------------|
 | `401 Unauthorized` | Unauthorized access.               |
@@ -128,35 +127,35 @@ Authorization: Bearer <jwt_token>
 
 ---
 
-## 5. Code Implementation
+## **5. Updated Code Implementation**
 
 ```python
 @v1.route('/get_user', methods=['GET'])
 @jwt_required()
 def get_user():
     """
-    Endpoint per ottenere le informazioni dell'utente.
-    Richiede autenticazione tramite JWT.
+    Retrieves the authenticated user's profile information.
+    Requires JWT authentication.
     """
     user_ip = utils.get_client_ip(request)
-    current_app.logger.info(f"{user_ip} - /get_user Updating user info.")
+    current_app.logger.info(f"{user_ip} - /get_user Retrieving user info.")
 
     try:
-        # Ottieni l'identità dell'utente dal refresh token
+        # Extract user ID from JWT token
         current_user_id = get_jwt_identity()
 
-        # verifica dell'utente
-        # Esegui una query per trovare l'utente nel database
+        # Query user from the database
         current_user = User.query.filter_by(user_id=current_user_id).first()
 
         if current_user is None:
             current_app.logger.info(f"{user_ip} - /get_user User not found")
             return utils.jsonify_return_error("error", 404, "User not found"), 404
+
         if not current_user.is_active:
             current_app.logger.info(f"{user_ip} - /get_user Account is inactive. Please contact support.")
             return utils.jsonify_return_error("error", 403, "Account is inactive. Please contact support."), 403
-        
-            # Prepara i dati della risposta
+
+        # Prepare response data
         data = {
             "user_id": current_user.user_id,
             "email": current_user.email,
@@ -168,28 +167,26 @@ def get_user():
             "is_active": current_user.is_active
         }
 
-        # Restituisci la risposta formattata
-        current_app.logger.info(f"{user_ip} - /get_user success refreshing token")
+        # Return formatted response
+        current_app.logger.info(f"{user_ip} - /get_user success retrieving user info")
         return utils.jsonify_return_success("success", 200, data), 200
-    
+
     except Exception as e:
-        # Gestione degli errori imprevisti
+        # Handle unexpected errors
         current_app.logger.error(f"{user_ip} - /get_user Internal Server Error. {e}")
         return utils.jsonify_return_error("error", 500, "Internal Server Error."), 500
 ```
 
 ---
 
-## 6. Security Considerations
+## **6. Security Considerations**
 
-1. **Authentication**
+✅ **Authentication**
    - JWT tokens should be securely stored and validated.
 
-2. **Inactive Users Are Blocked**
+✅ **Inactive Users Are Blocked**
    - Ensures inactive users cannot retrieve their profile.
 
-3. **Rate Limiting**
+✅ **Rate Limiting**
    - Optional rate limiting to prevent abuse.
-
-
 

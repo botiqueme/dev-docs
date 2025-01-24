@@ -1,4 +1,3 @@
-
 # **Endpoint: `/refresh_token`**
 
 ## **1. Details**
@@ -114,14 +113,14 @@ Authorization: Bearer <refresh_token>
 #### 4️⃣ **User Inactive (`is_active = False`)**
 | **HTTP Status** | **Message**                          |
 |----------------|--------------------------------------|
-| `403 Forbidden` | "Account is inactive. Please contact support." |
+| `403 Forbidden` | "Account is inactive." |
 
 #### Example Response:
 ```
 {
   "status": "error",
   "code": 403,
-  "message": "Account is inactive. Please contact support."
+  "message": "Account is inactive."
 }
 ```
 
@@ -145,14 +144,13 @@ Authorization: Bearer <refresh_token>
 
 ## **5. Updated Code Implementation**
 
-```
+```python
 @v1.route('/refresh_token', methods=['POST'])
 @jwt_required(refresh=True)
 def refresh():
     """
     Endpoint to regenerate an access token using a valid refresh token.
     """
-
     try:
         # Extract user ID from refresh token
         current_user_id = get_jwt_identity()
@@ -166,7 +164,7 @@ def refresh():
 
         # Check if user is active
         if not user.is_active:
-            return jsonify_return_error("error", 403, "Account is inactive. Please contact support."), 403
+            return jsonify_return_error("error", 403, "Account is inactive."), 403
 
         # Generate a new access token
         new_access_token = utils.create_access_token(identity=current_user_id)
@@ -218,5 +216,4 @@ def refresh():
    - Invalid refresh token  
    - User not found  
    - User inactive (`is_active = False`)  
-
----
+```
