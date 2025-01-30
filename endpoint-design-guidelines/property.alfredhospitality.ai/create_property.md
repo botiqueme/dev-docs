@@ -3,8 +3,7 @@
 ## **1. Purpose**
 This endpoint allows users to **create a new property**. The property will be **linked to the `user_id`**
 
-<! Future implementation: The property will be **linked to the `tenant_id`** of the authenticated user, ensuring that all users within the same tenant can access and manage it.>
-
+<!-- Future implementation: The property will be **linked to the `tenant_id`** of the authenticated user, ensuring that all users within the same tenant can access and manage it.-->
 ---
 
 ## **2. Technical Specifications**
