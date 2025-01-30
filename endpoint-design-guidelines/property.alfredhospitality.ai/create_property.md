@@ -1,7 +1,9 @@
 # **Endpoint: `/create_property`**
 
 ## **1. Purpose**
-This endpoint allows users to **create a new property**. The property will be **linked to the `tenant_id`** of the authenticated user, ensuring that all users within the same tenant can access and manage it.
+This endpoint allows users to **create a new property**. The property will be **linked to the `user_id`**
+
+<! Future implementation: The property will be **linked to the `tenant_id`** of the authenticated user, ensuring that all users within the same tenant can access and manage it.>
 
 ---
 
@@ -15,7 +17,7 @@ This endpoint allows users to **create a new property**. The property will be **
 
 ### **Authentication**
 Requires a valid **JWT token**.  
-The property will be associated with the **tenant_id** of the authenticated user.
+The property will be associated with the **user_id** of the authenticated user.
 
 ---
 
@@ -24,7 +26,7 @@ The property will be associated with the **tenant_id** of the authenticated user
 | **Parameter**  | **Type**  | **Required** | **Description** |
 |---------------|-----------|--------------|-----------------|
 | `Authorization` | Header (JWT) | Yes | Bearer token to authenticate the user. |
-| `name` | String | Yes | Unique property name (no duplicates allowed within the tenant). |
+| `name` | String | Yes | Unique property name (no duplicates allowed). |
 
 ### **Example Request**
 ```json
@@ -43,7 +45,7 @@ Content-Type: application/json
 
 ### **1. JWT Authentication**
 - Extract the **JWT token** from the `Authorization` header.
-- Decode the token and retrieve the **user ID** and **tenant ID**.
+- Decode the token and retrieve the **user ID** <! Future implementation: and **tenant ID**>.
 
 ### **2. Property Name Validation**
 - Ensure the **`name`** is provided.
