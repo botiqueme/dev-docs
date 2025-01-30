@@ -1,4 +1,4 @@
-### **Endpoint: `/add_placeholder/{property_id}`**
+### **Endpoint: `/add_placeholder/<property_id>`**
 
 #### **Purpose**
 Allows a user to add a new placeholder to a specific property. Placeholders can store text, images, videos, phone numbers, or other custom data for the property.
@@ -11,7 +11,7 @@ Allows a user to add a new placeholder to a specific property. Placeholders can 
 `POST`
 
 ### **URL**
-`/add_placeholder/{property_id}`
+`/add_placeholder/<property_id>`
 
 ### **Authentication**
 🔑 **JWT (Access Token Required)**  
@@ -102,22 +102,6 @@ The request must be authenticated, and the user must have access to the specifie
 
 ---
 
-#### **3️⃣ Unauthorized Access**
-| **HTTP Status** | **Message** |
-|----------------|-------------|
-| `403 Forbidden` | "Access denied. You do not have permission to modify this property." |
-
-**Example Response:**
-```json
-{
-  "status": "error",
-  "code": 403,
-  "message": "Access denied. You do not have permission to modify this property."
-}
-```
-
----
-
 #### **4️⃣ Invalid Token**
 | **HTTP Status** | **Message** |
 |----------------|-------------|
@@ -141,62 +125,92 @@ The request must be authenticated, and the user must have access to the specifie
 @jwt_required()
 def add_placeholder(property_id):
     """
-    Adds a new placeholder to a specific property.
-    Requires JWT authentication.
+    Adds a new custom placeholder to a specific property.
+    If 'apply_to_all' is set to True, it applies the placeholder to all the user's properties.
     """
 
+    user_ip = utils.get_client_ip(request)
+    current_app.logger.info(f"{user_ip} - /add_placeholder Adding custom placeholder.")
+
     user_id = get_jwt_identity()
-
-    # Fetch property
+    # Verifica che la proprietà appartenga all'utente
     property_instance = Property.query.filter_by(id=property_id, user_id=user_id).first()
-
     if not property_instance:
-        return jsonify_return_error("error", 404, "Property not found."), 404
-
-    # Parse request data
+        current_app.logger.info(f"{user_ip} - /add_placeholder Property not found")
+        return utils.jsonify_return_error("error", 404, "Property not found"), 404
+    
+    # Estrarre i dati dalla richiesta
     data = request.get_json()
-    name = data.get("name")
-    placeholder_type = data.get("type")
-    value = data.get("value")
+    name = data.get("name", "").strip()
+    placeholder_type = data.get("type", "").strip().lower()
+    value = data.get("value", "").strip()
     apply_to_all = data.get("apply_to_all", False)
 
-    # Validate inputs
-    if not name or not placeholder_type or not value:
-        return jsonify_return_error("error", 400, "Missing required fields: name, type, or value."), 400
+    # Validazione campi obbligatori
+    if not name or not placeholder_type:
+        current_app.logger.info(f"{user_ip} - /add_placeholder Missing required fields")
+        return utils.jsonify_return_error("error", 400, "Missing required fields: name or type."), 400
 
-    # Check for duplicate placeholder name in the same property
-    existing_placeholder = Placeholder.query.filter_by(property_id=property_id, name=name).first()
-    if existing_placeholder:
-        return jsonify_return_error("error", 409, "Placeholder name already exists."), 409
+    # Validazione del tipo di dato
+    valid_data_types = {"string", "integer", "boolean", "text", "float"}
+    if placeholder_type not in valid_data_types:
+        current_app.logger.info(f"{user_ip} - /add_placeholder Invalid data_type")
+        return utils.jsonify_return_error("error", 400, f"Invalid data_type: {placeholder_type}. Allowed: {valid_data_types}"), 400
 
-    # Add placeholder to the property
-    new_placeholder = Placeholder(
+    # Verifica se la feature esiste già per l'utente
+    existing_feature = CustomFeature.query.filter_by(user_id=user_id, name=name).first()
+
+    if existing_feature:
+        feature_id = existing_feature.id 
+    else:
+        # Creiamo una nuova feature personalizzata
+        new_feature = CustomFeature(
+            user_id=user_id,
+            name=name,
+            data_type=placeholder_type,
+            make_available_for_all=apply_to_all
+        )
+        db.session.add(new_feature)
+        db.session.commit()  # Commit immediato per ottenere l'ID
+        feature_id = new_feature.id
+
+    # Controlliamo se il valore per questa proprietà esiste già
+    existing_value = CustomFeatureValue.query.filter_by(property_id=property_id, feature_id=feature_id).first()
+
+    if existing_value:
+        current_app.logger.info(f"{user_ip} - /add_placeholder Placeholder already exists for this property.")
+        return utils.jsonify_return_error("error", 409, "This placeholder already exists for this property."), 409
+
+    # Aggiungiamo il valore per questa proprietà
+    new_value = CustomFeatureValue(
         property_id=property_id,
-        name=name,
-        type=placeholder_type,
+        feature_id=feature_id,
         value=value
     )
-    db.session.add(new_placeholder)
+    db.session.add(new_value)
 
-    # Apply placeholder to all properties (if applicable)
+    # Se `apply_to_all` è attivo, creiamo il placeholder per tutte le altre proprietà dell'utente con valore vuoto
     if apply_to_all:
         user_properties = Property.query.filter_by(user_id=user_id).all()
+
         for user_property in user_properties:
             if user_property.id != property_id:
-                placeholder_copy = Placeholder(
-                    property_id=user_property.id,
-                    name=name,
-                    type=placeholder_type,
-                    value=value
-                )
-                db.session.add(placeholder_copy)
+                existing_entry = CustomFeatureValue.query.filter_by(property_id=user_property.id, feature_id=feature_id).first()
+                if not existing_entry:
+                    new_entry = CustomFeatureValue(
+                        property_id=user_property.id,
+                        feature_id=feature_id,
+                        value=""  # Campo vuoto in attesa di aggiornamento dall'utente
+                    )
+                    db.session.add(new_entry)
 
     db.session.commit()
+    current_app.logger.info(f"{user_ip} - /add_placeholder Placeholder added successfully.")
 
-    # Return response
-    return jsonify_return_success("success", 201, {
+    # Risposta JSON
+    return utils.jsonify_return_success("success", 201, {
         "message": "Placeholder added successfully.",
-        "placeholder_id": new_placeholder.id,
+        "placeholder_id": feature_id,
         "property_id": property_id
     }), 201
 ```
