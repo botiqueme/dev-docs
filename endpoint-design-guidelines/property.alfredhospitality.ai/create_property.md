@@ -44,15 +44,15 @@ Content-Type: application/json
 
 ### **1. JWT Authentication**
 - Extract the **JWT token** from the `Authorization` header.
-- Decode the token and retrieve the **user ID** <! Future implementation: and **tenant ID**>.
+- Decode the token and retrieve the **user ID** <!-- Future implementation: and **tenant ID**-->.
 
 ### **2. Property Name Validation**
 - Ensure the **`name`** is provided.
-- Check that the property **name does not already exist** within the same `tenant_id`.
+- Check that the property **name does not already exist** within the same `user_id`.
 
 ### **3. Property Creation**
-- Assign the new property to the **tenant** of the user.
-- Save the property in the database.
+- Assign the new property to the **user_id** of the user.
+- Save the property in the database `property`.
 
 ### **4. Response**
 - If successful, return `201 Created` with the **property ID**.
@@ -74,8 +74,7 @@ Content-Type: application/json
   "code": 201,
   "data": {
     "property_id": "abc123",
-    "name": "Luxury Villa Rome",
-    "tenant_id": "tenant_456"
+    "name": "Luxury Villa Rome"
   }
 }
 ```
@@ -137,65 +136,65 @@ Content-Type: application/json
 @v1.route('/create_property', methods=['POST'])
 @jwt_required()
 def create_property():
-    """
-    Creates a new property for the authenticated user's tenant.
-    """
+    '''Create a new property for the user'''
 
     user_ip = utils.get_client_ip(request)
     current_app.logger.info(f"{user_ip} - /create_property Creating new property.")
 
     try:
-        # Extract user and tenant information from the JWT token
         current_user_id = get_jwt_identity()
         user = User.query.filter_by(user_id=current_user_id).first()
 
         if not user:
-            return jsonify_return_error("error", 404, "User not found"), 404
+            current_app.logger.info(f"{user_ip} - /create_property User not found")
+            return utils.jsonify_return_error("error", 404, "User not found"), 404
 
-        tenant_id = user.tenant_id  # Ensure we use the tenant ID
-
-        # Parse request data
         data = request.get_json()
+
         property_name = data.get("name")
-
-        # Validate property name
         if not property_name:
-            return jsonify_return_error("error", 400, "Missing property name."), 400
+            current_app.logger.info(f"{user_ip} - /create_property Missing property name")
+            return utils.jsonify_return_error("error", 400, "Missing property name"), 400
+        
 
-        # Ensure property name is unique within the tenant
-        existing_property = Property.query.filter_by(name=property_name, tenant_id=tenant_id).first()
-        if existing_property:
-            return jsonify_return_error("error", 409, "A property with this name already exists in your tenant."), 409
+        # Check if the user has already a property with the same name
+        property = Property.query.filter_by(user_id=user.user_id, name=property_name).first()
 
+        if property:
+            current_app.logger.info(f"{user_ip} - /create_property A property with this name already exists")
+            return utils.jsonify_return_error("error", 409, "A property with this name already exists"), 409
+        
         # Create the property
         new_property = Property(
-            tenant_id=tenant_id,
-            name=property_name
+            user_id=user.user_id,
+            name=property_name,
+            description=data.get("description")
         )
 
         db.session.add(new_property)
         db.session.commit()
 
-        # Prepare success response
         response_data = {
-            "property_id": new_property.property_id,
-            "name": new_property.name,
-            "tenant_id": new_property.tenant_id
+            "property_id": property.id,
+            "name": property.name,
         }
 
         current_app.logger.info(f"{user_ip} - /create_property success Property created")
-        return jsonify_return_success("success", 201, response_data), 201
-
+        return utils.jsonify_return_success("success", 201, response_data), 201
+    
+    except ValueError as e:
+        return utils.jsonify_return_error("error", 400, f"/create_property ValueError {str(e)}")
     except Exception as e:
         current_app.logger.error(f"{user_ip} - /create_property Internal Server Error. {e}")
-        return jsonify_return_error("error", 500, "Internal Server Error."), 500
+        return utils.jsonify_return_error("error", 500, "Internal Server Error."), 500
+
 ```
 
 ---
 
 ## **7. Security & Business Rules**
 ✅ **JWT Token Required** → Ensures only authenticated users can create properties.  
-✅ **Unique Property Name Per Tenant** → Prevents duplicate names within the same tenant.  
+✅ **Unique Property Name Per User** → Prevents duplicate names within the same user.  
 ✅ **Logs & Monitoring** → Tracks property creation events.  
 ✅ **No Property Limits (for now)** → Users can create unlimited properties.
 
