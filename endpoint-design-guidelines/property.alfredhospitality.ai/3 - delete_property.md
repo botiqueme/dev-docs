@@ -14,7 +14,7 @@ This endpoint allows users to **permanently delete** a property from their accou
 
 ### **Authentication**
 ✅ **JWT Required** (User must be authenticated).  
-✅ **Tenant ID Retrieved from JWT** (to ensure the property belongs to the correct project).  
+✅ **User ID Retrieved from JWT** (to ensure the property belongs to the correct project).  
 
 ---
 
@@ -55,9 +55,9 @@ Content-Type: application/json
 
 ## **Implementation Logic**
 
-### **1. JWT Authentication & Tenant Validation**
-- Extract the **tenant_id** from the **JWT**.
-- Retrieve the property from the database using **property_id** and **tenant_id**.
+### **1. JWT Authentication & user Validation**
+- Extract the **user_id** from the **JWT**.
+- Retrieve the property from the database using **property_id** and **user_id**.
 - If the property doesn’t belong to the user’s project, return **403 Forbidden**.
 
 ### **2. Confirm Property Name**
@@ -86,56 +86,52 @@ def delete_property():
     Endpoint to permanently delete a property.
     Requires manual confirmation of the property name.
     """
+
     user_ip = utils.get_client_ip(request)
     current_app.logger.info(f"{user_ip} - /delete_property Deleting property.")
 
     try:
-        # Get the tenant_id from the JWT
         current_user_id = get_jwt_identity()
-        tenant_id = get_tenant_from_jwt()
+        user = User.query.filter_by(user_id=current_user_id).first()
 
-        # Parse request data
+        if not user:
+            current_app.logger.info(f"{user_ip} - /delete_property User not found")
+            return utils.jsonify_return_error("error", 404, "User not found"), 404
+
         data = request.get_json()
-        property_id = data.get('property_id')
-        confirm_name = data.get('confirm_name')
+        property_id = data.get("property_id")
+        confirm_name = data.get("confirm_name")
 
-        # Input validation
         if not property_id or not confirm_name:
-            return utils.jsonify_return_error("error", 400, "Missing required fields."), 400
+            current_app.logger.info(f"{user_ip} - /delete_property Missing required data")
+            return utils.jsonify_return_error("error", 400, "Missing required fields"), 400
 
-        # Retrieve property
-        property_instance = Property.query.filter_by(property_id=property_id, tenant_id=tenant_id).first()
+        property = Property.query.filter_by(user_id=user.user_id, property_id=property_id).first()
 
-        if property_instance is None:
-            current_app.logger.info(f"{user_ip} - /delete_property Property not found.")
-            return utils.jsonify_return_error("error", 404, "Property not found."), 404
-
-        # Check if the provided name matches the actual property name
-        if property_instance.name != confirm_name:
-            current_app.logger.info(f"{user_ip} - /delete_property Incorrect confirmation name.")
-            return utils.jsonify_return_error("error", 400, "Property name does not match. Please enter the correct name to delete."), 400
-
-        # Proceed with hard delete
-        db.session.delete(property_instance)
+        if not property:
+            current_app.logger.info(f"{user_ip} - /delete_property Property not found")
+            return utils.jsonify_return_error("error", 404, "Property not found"), 404
+        
+        if property.name != confirm_name:
+            current_app.logger.info(f"{user_ip} - /delete_property Incorrect property name confirmation")
+            return utils.jsonify_return_error("error", 400, "Incorrect property name confirmation"), 400
+        
+        db.session.delete(property)
         db.session.commit()
-
-        # Send confirmation email (optional)
-        response = utils.send_generic_email(
-            current_user_id, 
-            "Property Deletion Confirmation",
-            f"The property '{property_instance.name}' has been permanently deleted."
-        )
+        
+        # Send confirmation email
+        response = utils.send_generic_email(user.email, "Property Deletion Confirmation", f"Your property {property.name} has been scheduled for deletion. If you did not request this, please contact support.")
         if response.status_code == 404:
             callback_refresh()
-            response = utils.send_generic_email(
-                current_user_id, 
-                "Property Deletion Confirmation",
-                f"The property '{property_instance.name}' has been permanently deleted."
-            )
+            response = utils.send_generic_email(user.email, "Property Deletion Confirmation", f"Your property {property.name} has been scheduled for deletion. If you did not request this, please contact support.")
 
-        current_app.logger.info(f"{user_ip} - /delete_property success Deleting property.")
+
+        current_app.logger.info(f"{user_ip} - /delete_property success Property deleted")
         return utils.jsonify_return_success("success", 200, {"message": "Property deleted successfully."}), 200
 
+    except ValueError as e:
+        current_app.logger.error(f"{user_ip} - /delete_property ValueError. {e}")
+        return utils.jsonify_return_error("error", 400, f"/delete_property ValueError {str(e)}")
     except Exception as e:
         current_app.logger.error(f"{user_ip} - /delete_property Internal Server Error. {e}")
         return utils.jsonify_return_error("error", 500, "Internal Server Error."), 500
@@ -144,7 +140,7 @@ def delete_property():
 ---
 
 ## **Security & Best Practices**
-✅ **Tenant Validation**: Ensures that only authorized users can delete properties.  
+✅ **user Validation**: Ensures that only authorized users can delete properties.  
 ✅ **Hard Delete Only**: No soft delete—deleted properties are **permanently removed**.  
 ✅ **Manual Confirmation**: Requires users to type the exact name to prevent accidental deletions.  
 ✅ **Rate Limiting**: Max **3 delete attempts per hour per user** to prevent abuse.  
