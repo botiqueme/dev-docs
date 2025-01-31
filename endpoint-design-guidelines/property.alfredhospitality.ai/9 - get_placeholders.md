@@ -1,7 +1,7 @@
-### **Endpoint: `/get_placeholders/{property_id}`**
+### **Endpoint: `/get_placeholders/<property_id>`**
 
 #### **Purpose**
-Retrieves all placeholders for a specific property. A placeholder contains information related to a property, such as text fields, phone numbers, addresses, images, or videos.
+Retrieves all placeholders for a specific property. A placeholder contains information related to the placeholder, such as text fields, phone numbers, addresses, images, or videos.
 
 ---
 
@@ -11,7 +11,7 @@ Retrieves all placeholders for a specific property. A placeholder contains infor
 `GET`
 
 ### **URL**
-`/get_placeholders/{property_id}`
+`/get_placeholders/<property_id>`
 
 ### **Authentication**
 🔑 **JWT (Access Token Required)**  
@@ -89,21 +89,6 @@ Authorization: Bearer <JWT_TOKEN>
 }
 ```
 
----
-
-#### **2️⃣ Unauthorized Access**
-| **HTTP Status** | **Message** |
-|----------------|-------------|
-| `403 Forbidden` | "Access denied. You do not have permission to view this property." |
-
-**Example Response:**
-```json
-{
-  "status": "error",
-  "code": 403,
-  "message": "Access denied. You do not have permission to view this property."
-}
-```
 
 ---
 
@@ -125,7 +110,7 @@ Authorization: Bearer <JWT_TOKEN>
 
 ## **4. Implementation Code**
 ```python
-@v1.route('/get_placeholders/<property_id>', methods=['GET'])
+@v1.route('/get_placeholders/<string:property_id>', methods=['GET'])
 @jwt_required()
 def get_placeholders(property_id):
     """
@@ -133,32 +118,69 @@ def get_placeholders(property_id):
     Requires JWT authentication.
     """
 
-    user_id = get_jwt_identity()
+    user_ip = utils.get_client_ip(request)
+    current_app.logger.info(f"{user_ip} - /get_placeholders Retrieving placeholders for property {property_id}.")
 
-    # Fetch property
-    property_instance = Property.query.filter_by(id=property_id, user_id=user_id).first()
+    try:
+        # Ottieni l'ID dell'utente dal token JWT
+        current_user_id = get_jwt_identity()
 
-    if not property_instance:
-        return jsonify_return_error("error", 404, "Property not found."), 404
+        # Verifica se la proprietà esiste e appartiene all'utente
+        property_instance = Property.query.filter_by(id=property_id, user_id=current_user_id).first()
+        if not property_instance:
+            current_app.logger.info(f"{user_ip} - /get_placeholders Property not found or does not belong to user.")
+            return utils.jsonify_return_error("error", 404, "Property not found or does not belong to user."), 404
 
-    # Retrieve placeholders
-    placeholders = Placeholder.query.filter_by(property_id=property_id).all()
+        # Recupera i placeholder standard associati alla proprietà
+        standard_placeholders = (
+            db.session.query(
+                PropertyFeature.id.label('id'),
+                PropertyFeature.name.label('name'),
+                PropertyFeature.data_type.label('type'),
+                PropertyFeatureValue.value.label('value'),
+                db.literal(False).label('is_custom')
+            )
+            .join(PropertyFeatureValue, PropertyFeature.id == PropertyFeatureValue.feature_id)
+            .filter(PropertyFeatureValue.property_id == property_id)
+            .all()
+        )
 
-    # Format response
-    placeholder_list = [
-        {
-            "id": placeholder.id,
-            "name": placeholder.name,
-            "type": placeholder.type,
-            "value": placeholder.value
-        }
-        for placeholder in placeholders
-    ]
+        # Recupera i placeholder personalizzati associati alla proprietà
+        custom_placeholders = (
+            db.session.query(
+                CustomFeature.id.label('id'),
+                CustomFeature.name.label('name'),
+                CustomFeature.data_type.label('type'),
+                CustomFeatureValue.value.label('value'),
+                db.literal(True).label('is_custom')
+            )
+            .join(CustomFeatureValue, CustomFeature.id == CustomFeatureValue.feature_id)
+            .filter(CustomFeatureValue.property_id == property_id, CustomFeature.user_id == current_user_id)
+            .all()
+        )
 
-    return jsonify_return_success("success", 200, {
-        "property_id": property_id,
-        "placeholders": placeholder_list
-    }), 200
+        # Combina i risultati
+        placeholders = [
+            {
+                "id": str(placeholder.id),
+                "name": placeholder.name,
+                "type": placeholder.type,
+                "value": placeholder.value,
+                "is_custom": placeholder.is_custom
+            }
+            for placeholder in standard_placeholders + custom_placeholders
+        ]
+
+        current_app.logger.info(f"{user_ip} - /get_placeholders Placeholders retrieved successfully.")
+        return utils.jsonify_return_success("success", 200, {
+            "property_id": property_id,
+            "placeholders": placeholders
+        }), 200
+
+    except Exception as e:
+        current_app.logger.error(f"{user_ip} - /get_placeholders Internal Server Error. {e}")
+        return utils.jsonify_return_error("error", 500, "Internal Server Error."), 500
+
 ```
 
 ---
