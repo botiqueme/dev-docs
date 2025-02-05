@@ -1,7 +1,7 @@
 ### **Endpoint: `/duplicate_property`**
 
 ## **Purpose**
-This endpoint allows authenticated users to **duplicate an existing property** within their tenant.  
+This endpoint allows authenticated users to **duplicate an existing property**.  
 - **The duplicate retains the same placeholders and values as the original.**  
 - **The chatbot instance for the duplicated property is created only after payment.**  
 - **The property name is automatically appended with `_copy` to avoid name conflicts.**  
@@ -17,7 +17,7 @@ This endpoint allows authenticated users to **duplicate an existing property** w
 `/duplicate_property`
 
 ### **Authentication**
-Requires a **valid JWT token**. The **tenant ID** is automatically extracted from the JWT.
+Requires a **valid JWT token**. The **user ID** is automatically extracted from the JWT.
 
 ---
 
@@ -55,13 +55,13 @@ Content-Type: application/json
 ## **Endpoint Logic**
 
 ### **1. JWT Authentication**
-- Extract the **user ID** and **tenant ID** from the **JWT token**.
+- Extract the **user ID** from the **JWT token**.
 - Ensure the user is **authenticated** before proceeding.
 
 ### **2. Retrieve Property**
 - Find the **existing property** using:
   - `property_id`
-  - `tenant_id` (to ensure it belongs to the authenticated user).
+  - `user_id` (to ensure it belongs to the authenticated user).
 - If the property is **not found**, return **404 Not Found**.
 
 ### **3. Validate Name Uniqueness**
@@ -69,16 +69,13 @@ Content-Type: application/json
 - If another property with the **same name already exists**, return **409 Conflict**.
 
 ### **4. Duplicate Property**
-- Create a **new property instance** with:
-  - **Status** = `draft`
-  - **Created by** = `current_user_id`
-  - **Tenant ID** = extracted from JWT
+- Create a **new property instance**
 - Save the **new property** in the database.
 
 ### **5. Duplicate Placeholders**
 - Copy **all placeholders** from the original property, including:
-  - **Standard placeholders** (name, address, email, phone, etc.)
-  - **Custom placeholders** (with the "apply to all properties" flag if active)
+  - **Standard placeholders VALUES** (name, address, email, phone, etc.)
+  - **Custom placeholders VALUES** (with the "apply to all properties" flag if active)
 
 ### **6. Commit & Return Success**
 - Save the new property and placeholders.
@@ -93,60 +90,92 @@ Content-Type: application/json
 @limiter.limit("10 per hour")
 def duplicate_property():
     """
-    Endpoint to duplicate an existing property within the user's tenant.
+    Endpoint to duplicate an existing property, including its feature values.
+    Requires authentication.
     """
-
     user_ip = utils.get_client_ip(request)
-    current_user_id = get_jwt_identity()
-    tenant_id = utils.get_tenant_from_jwt()  # Extract tenant_id from JWT
+    current_app.logger.info(f"{user_ip} - /duplicate_property Duplicating property.")
 
-    data = request.get_json()
-    property_id = data.get("property_id")
+    try:
+        # Ottieni l'ID dell'utente corrente dal token JWT
+        current_user_id = UUID(get_jwt_identity())
+        user = User.query.filter_by(user_id=current_user_id).first()
 
-    if not property_id:
-        return jsonify_return_error("error", 400, "Missing property_id parameter."), 400
+        if not user:
+            current_app.logger.info(f"{user_ip} - /duplicate_property User not found")
+            return utils.jsonify_return_error("error", 404, "User not found"), 404
 
-    # Retrieve property ensuring it belongs to the user's tenant
-    original_property = Property.query.filter_by(property_id=property_id, tenant_id=tenant_id).first()
+        data = request.get_json()
+        property_id = data.get("property_id")
 
-    if not original_property:
-        return jsonify_return_error("error", 404, "Property not found."), 404
+        if not property_id:
+            current_app.logger.info(f"{user_ip} - /duplicate_property Missing property_id")
+            return utils.jsonify_return_error("error", 400, "Missing property_id"), 400
 
-    # Generate new property name
-    new_property_name = f"{original_property.name}_copy"
+        # Verifica se la proprietà esiste e appartiene all'utente
+        original_property = Property.query.filter_by(user_id=user.user_id, id=UUID(property_id)).first()
 
-    # Check for name conflict
-    if Property.query.filter_by(name=new_property_name, tenant_id=tenant_id).first():
-        return jsonify_return_error("error", 409, "Property name already exists."), 409
+        if not original_property:
+            current_app.logger.info(f"{user_ip} - /duplicate_property Property not found")
+            return utils.jsonify_return_error("error", 404, "Property not found"), 404
+        
+        copy_name = f"{original_property.name}_copy"
+        # check for duplicate properties name
+        property_with_same_name = Property.query.filter_by(user_id=user.user_id, name=copy_name).first()
 
-    # Duplicate property
-    new_property = Property(
-        name=new_property_name,
-        tenant_id=tenant_id,  # Automatically assigning the property to the correct tenant
-        status="draft",
-        created_by=current_user_id
-    )
-    db.session.add(new_property)
-    db.session.commit()
+        if property_with_same_name:
+            current_app.logger.info(f"{user_ip} - /duplicate_property A property with this name already exists")
+            return utils.jsonify_return_error("error", 409, "A property with this name already exists"), 409
 
-    # Duplicate placeholders
-    for placeholder in original_property.placeholders:
-        new_placeholder = Placeholder(
-            property_id=new_property.property_id,
-            name=placeholder.name,
-            value=placeholder.value,
-            type=placeholder.type,
-            is_custom=placeholder.is_custom
+        # Crea la nuova proprietà duplicata
+        duplicated_property = Property(
+            user_id=user.user_id,
+            name=f"{original_property.name}_copy",
+            description=f"COPY {original_property.description}"
         )
-        db.session.add(new_placeholder)
 
-    db.session.commit()
+        db.session.add(duplicated_property)
+        db.session.commit()  # Commit per ottenere l'ID della nuova proprietà
 
-    # Return success response
-    return jsonify_return_success("success", 201, {
-        "message": "Property duplicated successfully. Chatbot creation pending payment.",
-        "property_id": new_property.property_id
-    }), 201
+        # **1. Duplica i valori delle caratteristiche standard (`PropertyFeatureValue`)**
+        original_feature_values = PropertyFeatureValue.query.filter(
+            PropertyFeatureValue.property_id == original_property.id
+        ).all()
+
+        for feature_value in original_feature_values:
+            duplicated_feature_value = PropertyFeatureValue(
+                property_id=duplicated_property.id,  # Associa alla nuova proprietà
+                feature_id=feature_value.feature_id,  # Mantiene lo stesso feature_id
+                value=feature_value.value  # Copia il valore esistente
+            )
+            db.session.add(duplicated_feature_value)
+
+        # **2. Duplica i valori delle caratteristiche personalizzate (`CustomFeatureValue`)**
+        original_custom_feature_values = CustomFeatureValue.query.filter(
+            CustomFeatureValue.property_id == original_property.id
+        ).all()
+
+        for custom_feature_value in original_custom_feature_values:
+            duplicated_custom_feature_value = CustomFeatureValue(
+                custom_feature_id=custom_feature_value.custom_feature_id,  # Mantiene lo stesso custom_feature_id
+                property_id=duplicated_property.id,  # Associa alla nuova proprietà
+                value=custom_feature_value.value  # Copia il valore esistente
+            )
+            db.session.add(duplicated_custom_feature_value)
+
+        db.session.commit()
+
+        current_app.logger.info(f"{user_ip} - /duplicate_property success Property duplicated")
+        return utils.jsonify_return_success("success", 201, {
+            "message": "Property duplicated successfully."
+        }), 201
+
+    except ValueError as e:
+        current_app.logger.error(f"{user_ip} - /duplicate_property ValueError. {e}")
+        return utils.jsonify_return_error("error", 400, f"/duplicate_property ValueError {str(e)}"), 400
+    except Exception as e:
+        current_app.logger.error(f"{user_ip} - /duplicate_property Internal Server Error. {e}")
+        return utils.jsonify_return_error("error", 500, "Internal Server Error."), 500
 ```
 
 ---
