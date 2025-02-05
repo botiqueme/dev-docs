@@ -1,7 +1,7 @@
 # **Endpoint: `/get_property_data`**  
 
 #### **Purpose**  
-This endpoint retrieves detailed information about a **specific property** belonging to a **specific tenant**, including all associated **placeholders** and their values.  
+This endpoint retrieves detailed information about a **specific property** belonging to a **specific user**, including all associated **placeholders** and their values.  
 
 ---
 
@@ -10,7 +10,7 @@ This endpoint retrieves detailed information about a **specific property** belon
 - **Method:** `GET`  
 - **URL:** `/get_property_data`  
 - **Authentication:** Requires **JWT Token**  
-- **Scope:** Only returns properties that belong to the **authenticated user’s tenant**  
+- **Scope:** Only returns properties that belong to the **authenticated user’s id**  
 
 ---
 
@@ -19,7 +19,7 @@ This endpoint retrieves detailed information about a **specific property** belon
 | **Parameter**  | **Type**  | **Required** | **Description** |
 |---------------|-----------|--------------|-----------------|
 | `property_id` | UUID      | ✅ Yes       | The unique identifier of the property to retrieve. |
-| `tenant_id`   | UUID      | ❌ No       | Derived from JWT; ensures only properties within the user's tenant are retrieved. |
+| `user`   | UUID      | ❌ No       | Derived from JWT; ensures only properties within the user's tenant are retrieved. |
 
 #### **Example Request**  
 ```
@@ -33,24 +33,20 @@ Authorization: Bearer <JWT_TOKEN>
 
 1. **JWT Authentication**  
    - Extract the JWT token from the `Authorization` header.  
-   - Decode the JWT and retrieve the `tenant_id` linked to the authenticated user.  
+   - Decode the JWT and retrieve the `user_id` linked to the authenticated user.  
 
 2. **Property Validation**  
-   - Ensure the provided `property_id` belongs to the **same tenant** as the user.  
-   - If the property does **not exist** or does **not belong to the tenant**, return a `404 Not Found`.  
+   - Ensure the provided `property_id` belongs to the user
+   - If the property does **not exist** or does **not belong to the user**, return a `404 Not Found`.  
 
 3. **Retrieve Property Data**  
    - Fetch the **property details**, including:
      - Property **name**
      - Property **status** (`draft`, `active`, `inactive`, `archived`)
      - List of **placeholders** and their values (standard + custom)
-     - **Created by** and **Last modified by**
-     - **Subscription status** (if applicable)
 
 4. **Response Handling**  
    - If the request is valid, return the **full property details**.  
-   - If the property is **archived**, return a warning message that it may be deleted soon.  
-
 ---
 
 ### **Response Codes & Examples**  
@@ -77,9 +73,6 @@ Authorization: Bearer <JWT_TOKEN>
         "value": "+39 333 1234567"
       }
     ],
-    "created_by": "John Doe",
-    "last_modified_by": "Jane Doe",
-    "subscription_active": true
   }
 }
 ```
@@ -92,7 +85,6 @@ Authorization: Bearer <JWT_TOKEN>
 |------------------------------|----------------|--------------|
 | **Property Not Found**        | `404 Not Found` | `"Property not found or does not belong to your account."` |
 | **Unauthorized Access**       | `401 Unauthorized` | `"Authorization token required."` |
-| **Account Inactive**          | `403 Forbidden` | `"Your account is inactive. Please reactivate to access property data."` |
 | **Subscription Expired**      | `403 Forbidden` | `"Subscription expired. Reactivate to retrieve property data."` |
 
 ---
@@ -103,56 +95,89 @@ Authorization: Bearer <JWT_TOKEN>
 @jwt_required()
 def get_property_data():
     """
-    Retrieves detailed information about a specific property.
-    Requires authentication via JWT.
+    Endpoint to retrieve detailed information about a specific property,
+    including all associated placeholders and their values.
+    Requires authentication.
     """
     user_ip = utils.get_client_ip(request)
-    current_app.logger.info(f"{user_ip} - /get_property_data Fetching property details.")
+    current_app.logger.info(f"{user_ip} - /get_property_data Retrieving property data.")
 
     try:
-        # Extract user and tenant information from JWT
-        current_user_id = get_jwt_identity()
-        current_user = User.query.filter_by(user_id=current_user_id).first()
+        # Ottieni l'ID dell'utente corrente dal token JWT
+        current_user_id = UUID(get_jwt_identity())
+        user = User.query.filter_by(user_id=current_user_id).first()
 
-        if current_user is None:
+        if not user:
             current_app.logger.info(f"{user_ip} - /get_property_data User not found")
             return utils.jsonify_return_error("error", 404, "User not found"), 404
 
-        if not current_user.is_active:
-            return utils.jsonify_return_error("error", 403, "Your account is inactive. Please reactivate to access property data."), 403
-
-        # Extract property ID from request
+        # Ottieni il property_id dai parametri della query string
         property_id = request.args.get("property_id")
 
         if not property_id:
-            return utils.jsonify_return_error("error", 400, "Missing property_id parameter."), 400
+            current_app.logger.info(f"{user_ip} - /get_property_data Missing property_id")
+            return utils.jsonify_return_error("error", 400, "Missing property_id"), 400
 
-        # Retrieve property and validate ownership
-        property_instance = Property.query.filter_by(property_id=property_id, tenant_id=current_user.tenant_id).first()
+        # Verifica se la proprietà esiste e appartiene all'utente
+        property = Property.query.filter_by(user_id=user.user_id, id=UUID(property_id)).first()
 
-        if not property_instance:
-            return utils.jsonify_return_error("error", 404, "Property not found or does not belong to your account."), 404
+        if not property:
+            current_app.logger.info(f"{user_ip} - /get_property_data Property not found")
+            return utils.jsonify_return_error("error", 404, "Property not found"), 404
 
-        # Prepare response data
-        response_data = {
-            "property_id": property_instance.property_id,
-            "tenant_id": property_instance.tenant_id,
-            "name": property_instance.name,
-            "status": property_instance.status,
-            "placeholders": [
-                {"name": p.name, "type": p.type, "value": p.value} for p in property_instance.placeholders
-            ],
-            "created_by": property_instance.created_by,
-            "last_modified_by": property_instance.last_modified_by,
-            "subscription_active": property_instance.subscription_active
+        # **1. Recupera le feature standard e i loro valori**
+        standard_features = db.session.query(
+            PropertyFeature.id, 
+            PropertyFeature.name, 
+            PropertyFeatureValue.value
+        ).join(PropertyFeatureValue, PropertyFeature.id == PropertyFeatureValue.feature_id
+        ).filter(PropertyFeatureValue.property_id == property.id).all()
+
+        # **2. Recupera le feature custom e i loro valori**
+        custom_features = db.session.query(
+            CustomFeature.id, 
+            CustomFeature.name, 
+            CustomFeatureValue.value
+        ).join(CustomFeatureValue, CustomFeature.id == CustomFeatureValue.feature_id
+        ).filter(CustomFeatureValue.property_id == property.id).all()
+
+        # **3. Costruzione della lista dei placeholders**
+        placeholder_list = []
+
+        # Aggiungi le feature standard
+        for feature in standard_features:
+            placeholder_list.append({
+                "feature_id": str(feature.feature_id),
+                "name": feature.name,
+                "value": feature.value
+            })
+
+        # Aggiungi le feature custom
+        for feature in custom_features:
+            placeholder_list.append({
+                "feature_id": str(feature.feature_id),
+                "name": feature.name,
+                "value": feature.value
+            })
+
+        # Costruisci la risposta con i dettagli della proprietà e i suoi placeholders
+        property_data = {
+            "property_id": str(property.id),
+            "name": property.name,
+            "description": property.description,
+            "placeholders": placeholder_list
         }
 
-        current_app.logger.info(f"{user_ip} - /get_property_data success fetching property details")
-        return utils.jsonify_return_success("success", 200, response_data), 200
+        current_app.logger.info(f"{user_ip} - /get_property_data success Property data retrieved")
+        return utils.jsonify_return_success("success", 200, property_data), 200
 
+    except ValueError as e:
+        current_app.logger.error(f"{user_ip} - /get_property_data ValueError. {e}")
+        return utils.jsonify_return_error("error", 400, f"/get_property_data ValueError {str(e)}"), 400
     except Exception as e:
         current_app.logger.error(f"{user_ip} - /get_property_data Internal Server Error. {e}")
         return utils.jsonify_return_error("error", 500, "Internal Server Error."), 500
+    
 ```
 
 ---
