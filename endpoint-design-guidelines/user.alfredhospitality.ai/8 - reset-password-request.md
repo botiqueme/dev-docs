@@ -75,6 +75,7 @@ Example request:
 | **Success**                | `200 OK`           | "If the email exists, a reset link has been sent." |
 | **Missing Email**          | `400 Bad Request`  | "Missing email."                            |
 | **Rate Limit Exceeded**    | `429 Too Many Requests` | "Too many requests. Please try again later." |
+| **User Not Found**    | `404 User not found` | "User not found" |
 
 Example Success Response:
 ```
@@ -123,6 +124,9 @@ def reset_password_request():
             if response.status_code == 404:
                 callback_refresh()
                 response = utils.send_verification_email(email, verify_url)
+        else:
+            current_app.logger.info(f"{user_ip} - /reset_password_request User not found.")
+            return utils.jsonify_return_error("Error", 404, "User not found."), 404
 
     except Exception as e:
         return utils.jsonify_return_error("Error", 500, "Internal Server Error, please contact the admin"), 500
