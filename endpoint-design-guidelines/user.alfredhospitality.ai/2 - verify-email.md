@@ -8,7 +8,7 @@ Validates a user's email using a unique token generated at registration.
 ## **1. Technical Specifications**
 
 ### **Method**
-- **GET**
+- **POST**
 
 ### **URL**
 - `/verify_email`
@@ -145,7 +145,7 @@ Validates a user's email using a unique token generated at registration.
 ## **4. Updated Code Implementation**
 
 ```python
-@v1.route('/verify_email/<token>', methods=['GET'])
+@v1.route('/verify_email/<token>', methods=['POST'])
 @limiter.limit("5 per minute", override_defaults=False, deduct_when=lambda resp: resp.status_code == 200)
 @limiter.limit("3 per minute", override_defaults=False, deduct_when=lambda resp: resp.status_code != 200)
 def verify_email(token):
