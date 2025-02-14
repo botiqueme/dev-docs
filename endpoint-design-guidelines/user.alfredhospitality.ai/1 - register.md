@@ -1,10 +1,10 @@
 # **Endpoint: `/register`**
 
 ## **Purpose**
-This endpoint allows users to register as either an **individual** or a **company**, enforcing field validation dynamically based on the chosen registration type.  
+This endpoint allows users to register as either an **individual** or a **company**, enforcing dynamic validation based on the chosen registration type.
 
 - **Individuals (`is_company = False`)** must provide **personal details**.  
-- **Companies (`is_company = True`)** must provide **business-related information** while some personal fields become optional.  
+- **Companies (`is_company = True`)** must provide **business-related information**, making some personal fields optional.  
 
 ---
 
@@ -24,15 +24,15 @@ None (public).
 ## **2. Request Parameters**
 
 ### **Required Fields (Always Required)**
-| **Field**     | **Type**  | **Required** | **Condition**                  |
-|--------------|-----------|--------------|--------------------------------|
-| `name`       | String   | ✅ Yes       | Always                         |
-| `surname`    | String   | ✅ Yes       | Always                         |
-| `email`      | String   | ✅ Yes       | Always                         |
-| `confirm_email` | String | ✅ Yes       | Must match `email`            |
-| `password`   | String   | ✅ Yes       | Always                         |
-| `confirm_password` | String | ✅ Yes   | Must match `password`         |
-| `is_company` | Boolean  | ✅ Yes       | Defines whether it's a company |
+| **Field**         | **Type**  | **Required** | **Condition**                  |
+|------------------|-----------|--------------|--------------------------------|
+| `name`          | String   | ✅ Yes       | Always                         |
+| `surname`       | String   | ✅ Yes       | Always                         |
+| `email`         | String   | ✅ Yes       | Always                         |
+| `confirm_email` | String   | ✅ Yes       | Must match `email`            |
+| `password`      | String   | ✅ Yes       | Always                         |
+| `confirm_password` | String | ✅ Yes      | Must match `password`         |
+| `is_company`    | Boolean  | ✅ Yes       | Defines if it’s a company      |
 
 ---
 
@@ -131,8 +131,50 @@ Content-Type: application/json
 
 ---
 
-## **6. Implementation Code**
+## **6. Additional Features**
 
+### **Rate Limiting**
+- **3 registration attempts per minute per IP** using `Flask-Limiter`.
+
+### **Database Integration**
+- **`is_active` Field**:
+  - Added to the `users` table as a boolean.
+  - Default value: `True` (active users).
+  - Used to manage account status:
+    - If a user deactivates their account, set `is_active = False`.
+    - If the account is reactivated, set `is_active = True`.
+
+**Database Migration**
+```sql
+ALTER TABLE users ADD COLUMN is_active BOOLEAN DEFAULT TRUE;
+```
+
+---
+
+## **7. Security Details**
+- **Secure Passwords**:
+  - Stored using `bcrypt` hashing.
+- **Blocked Disposable Emails**:
+  - Validated through a dedicated library.
+- **Email Verification Token**:
+  - Securely generated using `URLSafeTimedSerializer`.
+- **Prevent Duplicate Registrations**:
+  - Emails are unique, enforced at the database level.
+
+---
+
+## **8. Future Considerations**
+- **Inactive Users**:
+  - Ensure `/login` endpoint checks `is_active` status.
+  - Add `/reactivate_user` to handle account reactivation.
+- **Monitoring**:
+  - Track registration and verification metrics with **Prometheus** or **Sentry**.
+- **Scalability**:
+  - Implement **email sending via a queue** to handle spikes in user registration.
+
+---
+
+## **9. Implementation Code**
 ```python
 @v1.route('/register', methods=['POST'])
 @limiter.limit("3 per minute")
@@ -154,53 +196,12 @@ def register():
 
     # Conditional validation
     if is_company:
-        company_fields = ["company_name", "vat_number", "company_billing_address", "company_phone_number", "job_title"]
-        for field in company_fields:
+        required_company_fields = ["company_name", "vat_number", "company_billing_address", "company_phone_number", "job_title"]
+        for field in required_company_fields:
             if not data.get(field):
                 return jsonify({"status": "error", "message": f"{field.replace('_', ' ').capitalize()} is required for company registration."}), 400
-    else:
-        personal_fields = ["billing_address", "phone_number"]
-        for field in personal_fields:
-            if not data.get(field):
-                return jsonify({"status": "error", "message": f"{field.replace('_', ' ').capitalize()} is required for personal registration."}), 400
 
-    # Hash password
-    password_hash = bcrypt.hashpw(data['password'].encode('utf-8'), bcrypt.gensalt())
-
-    # Create new user
-    new_user = User(
-        email=data['email'],
-        password_hash=password_hash,
-        name=data['name'],
-        surname=data['surname'],
-        is_verified=False,
-        is_active=True,
-        is_company=is_company
-    )
-
-    # Set company fields if applicable
-    if is_company:
-        new_user.company_name = data['company_name']
-        new_user.vat_number = data['vat_number']
-        new_user.company_billing_address = data['company_billing_address']
-        new_user.company_phone_number = data['company_phone_number']
-        new_user.job_title = data['job_title']
-    else:
-        new_user.billing_address = data['billing_address']
-        new_user.phone_number = data['phone_number']
-
-    # Save to database
-    try:
-        db.session.add(new_user)
-        db.session.commit()
-    except IntegrityError:
-        db.session.rollback()
-        return jsonify({"status": "error", "message": "Email already registered."}), 409
-
-    # Send email verification
-    token = generate_verification_token(data['email'])
-    verify_url = url_for('v1.verify_email', token=token, _external=True)
-    send_verification_email(data['email'], verify_url)
+    # Hash password and create user in DB (omitted for brevity)
 
     return jsonify({"status": "success", "message": "User registered. Please verify your email."}), 201
 ```
