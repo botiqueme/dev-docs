@@ -1,7 +1,13 @@
+Sure! Here’s the **fully updated** endpoint specification in **Markdown format** for easy copying.  
+
+```markdown
 # **Endpoint: `/register`**
 
 ## **Purpose**
-Register a new user, ensuring the data is valid, secure, and ready for use in a platform requiring email verification. This endpoint is designed to be secure, scalable, and unambiguous.
+This endpoint allows users to register as either an **individual** or a **company**, enforcing field validation dynamically based on the chosen registration type.  
+
+- **Individuals (`is_company = False`)** must provide **personal details**.  
+- **Companies (`is_company = True`)** must provide **business-related information** while some personal fields become optional.  
 
 ---
 
@@ -18,131 +24,174 @@ None (public).
 
 ---
 
-## **2. Parameters**
+## **2. Request Parameters**
 
-### **Required**
-| **Name**       | **Type**  | **Description**                 | **Validation**                |
-|----------------|-----------|-----------------------------------|--------------------------------|
-| `email`        | String    | User's email.                  | Valid format, not disposable. |
-| `password`     | String    | Password to be hashed.         | Minimum 8 characters, at least 1 uppercase, 1 number, 1 special character. |
-| `name`         | String    | User's first name.             | Cannot be empty.              |
-| `surname`      | String    | User's last name.              | Cannot be empty.              |
-
-### **Optional**
-| **Name**        | **Type**  | **Description**                 | **Validation**                |
-|-----------------|-----------|---------------------------------|--------------------------------|
-| `phone_number`  | String    | User's phone number.           | Regex for international formats. |
-| `vat_number`    | String    | VAT number.                    | Regex for national formats.   |
-
-### **System-Generated**
-| **Name**       | **Type**  | **Description**                 | **Validation** |
-|----------------|-----------|---------------------------------|----------------|
-| `is_active`    | Boolean   | Indicates if the user account is active. | Default `True`. Cannot be modified at registration. |
+### **Required Fields (Always Required)**
+| **Field**     | **Type**  | **Required** | **Condition**                  |
+|--------------|-----------|--------------|--------------------------------|
+| `name`       | String   | ✅ Yes       | Always                         |
+| `surname`    | String   | ✅ Yes       | Always                         |
+| `email`      | String   | ✅ Yes       | Always                         |
+| `confirm_email` | String | ✅ Yes       | Must match `email`            |
+| `password`   | String   | ✅ Yes       | Always                         |
+| `confirm_password` | String | ✅ Yes   | Must match `password`         |
+| `is_company` | Boolean  | ✅ Yes       | Defines whether it's a company |
 
 ---
 
-### **3. Request Example**
-```
-POST /register  
+### **Conditional Fields**
+| **Field**                 | **Type**  | **Required?** | **Condition**                                 |
+|---------------------------|-----------|--------------|----------------------------------------------|
+| `billing_address`         | String   | ✅ Yes       | Only if `is_company = False` (Individual)   |
+| `phone_number`            | String   | ✅ Yes       | Only if `is_company = False` (Individual)   |
+| `company_name`            | String   | ✅ Yes       | Only if `is_company = True` (Company)       |
+| `vat_number`              | String   | ✅ Yes       | Only if `is_company = True` (Company)       |
+| `company_billing_address` | String   | ✅ Yes       | Only if `is_company = True` (Company)       |
+| `company_phone_number`    | String   | ✅ Yes       | Only if `is_company = True` (Company)       |
+| `job_title`               | String   | ✅ Yes       | Only if `is_company = True` (Company)       |
+
+---
+
+## **3. Example Requests**
+
+### **1️⃣ Individual Registration (`is_company = False`)**
+```json
+POST /register
 Content-Type: application/json
 
 {
-  "email": "user@example.com",
-  "password": "SecurePass123!",
   "name": "John",
   "surname": "Doe",
-  "phone_number": "+1234567890",
-  "vat_number": "IT12345678901"
+  "email": "john@example.com",
+  "confirm_email": "john@example.com",
+  "password": "SecurePass123!",
+  "confirm_password": "SecurePass123!",
+  "is_company": false,
+  "billing_address": "123 Main St, London",
+  "phone_number": "+441234567890"
 }
 ```
 
 ---
 
-## **4. Responses**
+### **2️⃣ Company Registration (`is_company = True`)**
+```json
+POST /register
+Content-Type: application/json
 
-### **Success**
+{
+  "name": "Alice",
+  "surname": "Smith",
+  "email": "alice@company.com",
+  "confirm_email": "alice@company.com",
+  "password": "CompanyPass2023!",
+  "confirm_password": "CompanyPass2023!",
+  "is_company": true,
+  "company_name": "Tech Solutions Ltd",
+  "vat_number": "GB123456789",
+  "company_billing_address": "456 Business Park, London",
+  "company_phone_number": "+442012345678",
+  "job_title": "CTO"
+}
+```
+
+---
+
+## **4. Response Codes**
+
+### ✅ **Success**
 | **HTTP Status** | **Message**                          |
 |-----------------|---------------------------------------|
 | `201 Created`   | "User registered. Please verify your email." |
 
-### **Errors**
-| **Cause**                 | **HTTP Status**    | **Message**                                |
-|----------------------------|--------------------|---------------------------------------------|
-| Disposable email	          | `400 Bad Request` | "Disposable emails are not allowed."       |
-| Duplicate email            | `409 Conflict`    | "Email already registered."                |
-| Rate limit exceeded        | `429 Too Many Requests` | "Too many requests. Please try again later." |
-| Database integrity issue   | `500 Error`       | "Internal Server Error, please contact the admin." |
+### ❌ **Errors**
+| **Cause**                | **HTTP Status**       | **Message**                                 |
+|--------------------------|----------------------|---------------------------------------------|
+| Disposable email         | `400 Bad Request`    | "Disposable emails are not allowed."       |
+| Missing required fields  | `400 Bad Request`    | "Field X is required."                     |
+| Email mismatch           | `400 Bad Request`    | "Emails do not match."                     |
+| Password mismatch        | `400 Bad Request`    | "Passwords do not match."                  |
+| Duplicate email          | `409 Conflict`       | "Email already registered."                |
+| Rate limit exceeded      | `429 Too Many Requests` | "Too many requests. Try again later."     |
+| Database integrity issue | `500 Internal Error` | "Internal Server Error. Please contact support." |
 
 ---
 
-## **5. Detailed Flow**
+## **5. Backend Logic**
 
-### **1. Request Handling**
-1. Retrieve parameters sent by the frontend.
-2. Ensure all required fields are present.
+### **Validation Process**
+1. Retrieve `is_company` value to determine required fields.
+2. **Validate common fields**:
+   - Check `email`, `confirm_email`, `password`, `confirm_password`.
+3. **Conditional validation**:
+   - If `is_company = False`, require `billing_address` and `phone_number`.
+   - If `is_company = True`, require `company_name`, `vat_number`, `company_billing_address`, `company_phone_number`, `job_title`.
 
-### **2. Validation**
-- **Email**:
-  - Valid format.
-  - Not disposable (via `is_disposable_email` library).
-- **Password**:
-  - Minimum length of 8 characters.
-  - Must contain at least 1 uppercase, 1 number, and 1 special character.
-- **Optional Fields**:
-  - Phone number (regex for international formats).
-  - VAT number (regex for national formats).
-
-### **3. User Creation**
-1. Hash the password (`bcrypt`).
-2. Generate a unique ID for the user (`UUID`).
-3. Save the user to the database:
-   - Ensure the email is not duplicated.
-   - Automatically set `is_active = True`.
-
-### **4. Email Verification**
-1. Create a verification token using `URLSafeTimedSerializer`.
-2. Send the token via an email containing a link to verify the account.
+### **User Creation**
+1. Hash password (`bcrypt`).
+2. Store user in the database.
+3. Generate an **email verification token** and send an email.
 
 ---
 
 ## **6. Implementation Code**
-
-```
+```python
 @v1.route('/register', methods=['POST'])
 @limiter.limit("3 per minute")
 def register():
     data = request.get_json()
-    email = data['email']
-    password = data['password']
-    name = data['name']
-    surname = data['surname']
-    phone_number = data.get('phone_number')
-    vat_number = data.get('vat_number')
+    is_company = data.get('is_company', False)
 
-    # Check if the email is disposable
-    if is_disposable_email.check(email):
-        return jsonify({"status": "error", "message": "Disposable emails are not allowed."}), 400
+    # Common required fields
+    required_fields = ["name", "surname", "email", "confirm_email", "password", "confirm_password"]
+    for field in required_fields:
+        if not data.get(field):
+            return jsonify({"status": "error", "message": f"{field.replace('_', ' ').capitalize()} is required."}), 400
 
-    # Hash the password
-    password_hash = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt())
+    if data.get('email') != data.get('confirm_email'):
+        return jsonify({"status": "error", "message": "Emails do not match."}), 400
 
-    # Create the new user
+    if data.get('password') != data.get('confirm_password'):
+        return jsonify({"status": "error", "message": "Passwords do not match."}), 400
+
+    # Conditional validation
+    if is_company:
+        company_fields = ["company_name", "vat_number", "company_billing_address", "company_phone_number", "job_title"]
+        for field in company_fields:
+            if not data.get(field):
+                return jsonify({"status": "error", "message": f"{field.replace('_', ' ').capitalize()} is required for company registration."}), 400
+    else:
+        personal_fields = ["billing_address", "phone_number"]
+        for field in personal_fields:
+            if not data.get(field):
+                return jsonify({"status": "error", "message": f"{field.replace('_', ' ').capitalize()} is required for personal registration."}), 400
+
+    # Hash password
+    password_hash = bcrypt.hashpw(data['password'].encode('utf-8'), bcrypt.gensalt())
+
+    # Create new user
     new_user = User(
-        email=email,
+        email=data['email'],
         password_hash=password_hash,
-        name=name,
-        surname=surname,
+        name=data['name'],
+        surname=data['surname'],
         is_verified=False,
-        is_active=True  # Automatically set active on registration
+        is_active=True,
+        is_company=is_company
     )
 
-    # Add optional fields
-    if phone_number:
-        new_user.phone_number = phone_number
-    if vat_number:
-        new_user.vat_number = vat_number
+    # Set company fields if applicable
+    if is_company:
+        new_user.company_name = data['company_name']
+        new_user.vat_number = data['vat_number']
+        new_user.company_billing_address = data['company_billing_address']
+        new_user.company_phone_number = data['company_phone_number']
+        new_user.job_title = data['job_title']
+    else:
+        new_user.billing_address = data['billing_address']
+        new_user.phone_number = data['phone_number']
 
-    # Save user to database
+    # Save to database
     try:
         db.session.add(new_user)
         db.session.commit()
@@ -150,48 +199,10 @@ def register():
         db.session.rollback()
         return jsonify({"status": "error", "message": "Email already registered."}), 409
 
-    # Generate verification token and send email
-    token = generate_verification_token(email)
+    # Send email verification
+    token = generate_verification_token(data['email'])
     verify_url = url_for('v1.verify_email', token=token, _external=True)
-    send_verification_email(email, verify_url)
+    send_verification_email(data['email'], verify_url)
 
     return jsonify({"status": "success", "message": "User registered. Please verify your email."}), 201
 ```
-
----
-
-## **7. Database Integration**
-- **`is_active` Field**:
-  - Added to the `users` table as a boolean.
-  - Default value: `True` (active users).
-  - Used to manage account status:
-    - If a user deactivates their account, set `is_active = False`.
-    - If the account is reactivated, set `is_active = True`.
-
-#### **Database Migration**
-```
-ALTER TABLE users ADD COLUMN is_active BOOLEAN DEFAULT TRUE;
-```
-
----
-
-## **8. Security Details**
-1. **Rate Limiting**:
-   - 3 requests per minute per IP using Flask-Limiter.
-2. **Secure Passwords**:
-   - Hashed with bcrypt.
-3. **Blocked Disposable Emails**:
-   - Validated through a dedicated library.
-4. **Email Verification Token**:
-   - Securely generated using `URLSafeTimedSerializer`.
-
----
-
-## **9. Future Considerations**
-- **Inactive Users**:
-  - Ensure `/login` endpoint checks `is_active` status.
-  - Add `/reactivate_user` to handle account reactivation.
-- **Monitoring**:
-  - Track registration and verification metrics with tools like Prometheus.
-- **Scalability**:
-  - Implement email sending via a queue to handle spikes in user registration.
