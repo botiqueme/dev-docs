@@ -1,6 +1,3 @@
-Sure! Here’s the **fully updated** endpoint specification in **Markdown format** for easy copying.  
-
-```markdown
 # **Endpoint: `/register`**
 
 ## **Purpose**
@@ -135,6 +132,7 @@ Content-Type: application/json
 ---
 
 ## **6. Implementation Code**
+
 ```python
 @v1.route('/register', methods=['POST'])
 @limiter.limit("3 per minute")
