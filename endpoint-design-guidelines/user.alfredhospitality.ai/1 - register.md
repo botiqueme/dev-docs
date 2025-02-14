@@ -29,9 +29,7 @@ None (public).
 | `name`          | String   | ✅ Yes       | Always                         |
 | `surname`       | String   | ✅ Yes       | Always                         |
 | `email`         | String   | ✅ Yes       | Always                         |
-| `confirm_email` | String   | ✅ Yes       | Must match `email`            |
 | `password`      | String   | ✅ Yes       | Always                         |
-| `confirm_password` | String | ✅ Yes      | Must match `password`         |
 | `is_company`    | Boolean  | ✅ Yes       | Defines if it’s a company      |
 
 ---
@@ -60,9 +58,7 @@ Content-Type: application/json
   "name": "John",
   "surname": "Doe",
   "email": "john@example.com",
-  "confirm_email": "john@example.com",
   "password": "SecurePass123!",
-  "confirm_password": "SecurePass123!",
   "is_company": false,
   "billing_address": "123 Main St, London",
   "phone_number": "+441234567890"
@@ -80,9 +76,7 @@ Content-Type: application/json
   "name": "Alice",
   "surname": "Smith",
   "email": "alice@company.com",
-  "confirm_email": "alice@company.com",
   "password": "CompanyPass2023!",
-  "confirm_password": "CompanyPass2023!",
   "is_company": true,
   "company_name": "Tech Solutions Ltd",
   "vat_number": "GB123456789",
@@ -106,8 +100,6 @@ Content-Type: application/json
 |--------------------------|----------------------|---------------------------------------------|
 | Disposable email         | `400 Bad Request`    | "Disposable emails are not allowed."       |
 | Missing required fields  | `400 Bad Request`    | "Field X is required."                     |
-| Email mismatch           | `400 Bad Request`    | "Emails do not match."                     |
-| Password mismatch        | `400 Bad Request`    | "Passwords do not match."                  |
 | Duplicate email          | `409 Conflict`       | "Email already registered."                |
 | Rate limit exceeded      | `429 Too Many Requests` | "Too many requests. Try again later."     |
 | Database integrity issue | `500 Internal Error` | "Internal Server Error. Please contact support." |
@@ -176,32 +168,130 @@ ALTER TABLE users ADD COLUMN is_active BOOLEAN DEFAULT TRUE;
 
 ## **9. Implementation Code**
 ```python
-@v1.route('/register', methods=['POST'])
+
+ @v1.route('/register', methods=['POST'])
 @limiter.limit("3 per minute")
 def register():
+    user_ip = utils.get_client_ip(request)
+    current_app.logger.info(f"{user_ip} - /register Registering new user...")
+
     data = request.get_json()
-    is_company = data.get('is_company', False)
 
     # Common required fields
-    required_fields = ["name", "surname", "email", "confirm_email", "password", "confirm_password"]
+    required_fields = ["name", "surname", "email", "password"]
     for field in required_fields:
         if not data.get(field):
-            return jsonify({"status": "error", "message": f"{field.replace('_', ' ').capitalize()} is required."}), 400
-
-    if data.get('email') != data.get('confirm_email'):
-        return jsonify({"status": "error", "message": "Emails do not match."}), 400
-
-    if data.get('password') != data.get('confirm_password'):
-        return jsonify({"status": "error", "message": "Passwords do not match."}), 400
+            current_app.logger.info(f"{user_ip} - /register {field.replace('_', ' ').capitalize()} is required.")
+            return utils.jsonify_return_error("Error", 400, f"{field.replace('_', ' ').capitalize()} is required."), 400
+    
+    is_company = data.get('is_company', False)
 
     # Conditional validation
     if is_company:
         required_company_fields = ["company_name", "vat_number", "company_billing_address", "company_phone_number", "job_title"]
         for field in required_company_fields:
             if not data.get(field):
-                return jsonify({"status": "error", "message": f"{field.replace('_', ' ').capitalize()} is required for company registration."}), 400
+                current_app.logger.info(f"{user_ip} - /register {field.replace('_', ' ').capitalize()} is required for company registration.")
+                return utils.jsonify_return_error("Error", 400, f"{field.replace('_', ' ').capitalize()} is required for company registration."), 400
+    else:
+        required_individual_fields = ["billing_address", "phone_number"]
+        for field in required_individual_fields:
+            if not data.get(field):
+                current_app.logger.info(f"{user_ip} - /register {field.replace('_', ' ').capitalize()} is required for individual registration.")
+                return utils.jsonify_return_error("Error", 400, f"{field.replace('_', ' ').capitalize()} is required for individual registration."), 400
 
-    # Hash password and create user in DB (omitted for brevity)
+    name = data['name']
+    surname = data['surname']
+    email = data['email']
+    password = data['password']
 
-    return jsonify({"status": "success", "message": "User registered. Please verify your email."}), 201
+    phone_number = data.get('phone_number')
+    vat_number = data.get('vat_number')
+    billing_address = data.get('billing_address')
+    company_name = data.get('company_name')
+    company_billing_address = data.get('company_billing_address')
+    company_phone_number = data.get('company_phone_number')
+    job_title = data.get('job_title')
+
+    # Verifica se l'email è un'email usa e getta
+    disposable = is_disposable_email.check(email)
+    if disposable:
+        current_app.logger.info(f"{user_ip} - /register Disposable email detected")
+        return utils.jsonify_return_error("Error", 400, "Disposable emails are not allowed."), 400
+    
+
+    # Hash della password
+    password_hash = utils.hash_password(password)
+
+
+    # Creazione nuovo utente
+    new_user = User(
+        email=email,
+        password_hash=password_hash,
+        name=name,
+        surname=surname,
+        is_active=True,
+        is_verified=False,
+        is_company=is_company
+    )
+
+    # Aggiunta dei campi opzionali solo se non sono vuoti
+    if phone_number:
+        new_user.phone_number = phone_number
+    if vat_number:
+        new_user.vat_number = vat_number
+    if billing_address:
+        new_user.billing_address = billing_address
+    if company_name:
+        new_user.company_name = company_name
+    if company_billing_address:
+        new_user.company_billing_address = company_billing_address
+    if company_phone_number:
+        new_user.company_phone_number = company_phone_number
+    if job_title:
+        new_user.job_title = job_title
+    
+    # Verifica se l'email è già registrata
+    existing_user = User.query.filter_by(email=email).first()
+    if existing_user:
+        current_app.logger.info(f"{user_ip} - /register Email already registered")
+        return utils.jsonify_return_error("Conflict", 409, "Email already registered"), 409
+
+    # Aggiungi l'utente al database
+    try:
+        db.session.add(new_user)
+        db.session.commit()
+    except IntegrityError as e:
+        db.session.rollback()
+        current_app.logger.error(f"{user_ip} - /register (Integrity) Error: {e}")
+        return utils.jsonify_return_error("Error", 500, "Internal (Integrity) Server Error, please contact the admin"), 500
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"{user_ip} - /register Internal (Databse) Error: {e}")
+        return utils.jsonify_return_error("Error", 500, "Internal (Databse) Server Error, please contact the admin"), 500
+
+    try:
+        # Generazione token di verifica
+        token = utils.generate_verification_token(email)
+        # logger.info(email)
+        verify_url = url_for('v1.verify_email', token=token, email=email, _external=True)
+        # logger.info(verify_url)
+
+        response = utils.send_verification_email(email, verify_url)
+        # logger.info(response)
+        if response.status_code == 404:
+            callback_refresh()
+            response = utils.send_verification_email(email, verify_url)
+    except Exception as e:
+        current_app.logger.error(f"{user_ip} - /register Internal (Verification Email) Error: {e}")
+        return utils.jsonify_return_error("Error", 500, "Internal (Verification Email) Server Error, please contact the admin"), 500
+
+
+    if response.status_code == 200:
+        current_app.logger.info(f"{user_ip} - /register User registered.")
+        return utils.jsonify_return_success("success", 201, {"message": "User registered. Please verify your email."}), 201
+    else:
+        current_app.logger.error(f"{user_ip} - /register Internal (Generic) Server Error: {e}")
+        return utils.jsonify_return_error("Error", 500, "Internal (Generic) Server Error, please contact the admin"), 500
+
 ```
