@@ -1,6 +1,4 @@
-Here is the **full updated specification** for the `/enterprise_contact_us` endpoint, including a **detailed overview, request handling, validation, security considerations, and implementation code**.
 
-```markdown
 # **Endpoint: `/enterprise_contact_us`**
 
 ## **1. Purpose**
