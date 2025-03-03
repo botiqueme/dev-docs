@@ -8,21 +8,30 @@ The page will be used to choose the plan, billing cycle, and payment method, and
 ## 1. Business Logic
 
 ### Payment Scenarios
-1. **Case 1: Add a MONTHLY subscription while having MONTHLY subscriptions**  
+
+1. **Case 1: Add a MONTHLY subscription while having an active YEARLY subscription only**  
+   - **Message:**  
+     "Start today your monthly subscription! Next billing occurs on <next_billing_estimated+30days>. "
+
+2. **Case 2: Add a YEARLY subscription while having an active MONTHLY subscription only**  
+   - **Message:**  
+     "Start today your yearly subscription! Next billing occurs on <next_billing_estimated+356 days>."
+
+3. **Case 3: Add a MONTHLY subscription while having MONTHLY subscriptions**  
    - **Message**:  
-     "Subscribe today and only pay for the days left in your current monthly billing cycle. Your next full payment will be on `<date_of_monthly_renewal>`."
+     "Subscribe today and only pay for the days left in your active monthly billing cycle. Your next full payment will be on <date_of_monthly_renewal>."
 
-2. **Case 2: Add a YEARLY subscription while having a YEARLY subscription**  
+4. **Case 4: Add a YEARLY subscription while having a YEARLY subscription**  
    - **Message**:  
-     "Subscribe today and only pay for the time left in your current yearly billing cycle. Your next full payment will be on `<date_of_yearly_renewal>`."
+     "Subscribe today and only pay for the time left in your active yearly billing cycle. Your next full payment will be on <date_of_yearly_renewal>."
 
-3. **Case 3: Add a MONTHLY subscription while having both MONTHLY & YEARLY subscriptions**  
+5. **Case 5: Add a MONTHLY subscription while having both MONTHLY & YEARLY subscriptions**  
    - **Proposed Message**:  
-     "Subscribe today and only pay for the days left in your other monthly billing cycle. Your next full payment will be on `<date_of_monthly_renewal>`. Your yearly subscriptions won't be affected by this change."
+     "Subscribe today and only pay for the days left in your active monthly billing cycle. Your next full payment will be on <date_of_monthly_renewal>. If you also have any active yearly subscriptions, they won't be affected."
 
-4. **Case 4: Add a YEARLY subscription while having both MONTHLY & YEARLY subscriptions**  
+6. **Case 6: Add a YEARLY subscription while having both MONTHLY & YEARLY subscriptions**  
    - **Proposed Message**:  
-     "Subscribe today and only pay for the time left in your other yearly billing cycles. Your next full payment will be on `<date_of_yearly_renewal>`. Your monthly subscriptions won't be affected by this change."
+     "Subscribe today and only pay for the time left in your active yearly billing cycle. Your next full payment will be on <date_of_yearly_renewal>. If you also have any active monthly subscriptions, they won't be affected."
 
 ### Default Behavior
 - On page load, **the displayed plan and billing cycle should be those last selected** (saved locally or retrieved via a dedicated endpoint).
@@ -56,35 +65,16 @@ Implement the dynamic message update as follows:
   1. Reads the newly selected billing cycle.
   2. Compares it with the active subscription details fetched earlier.
   3. Determines which case applies based on the scenarios:
-     - **Case 1:** New subscription is monthly and user has monthly subscriptions.
-     - **Case 2:** New subscription is yearly and user has yearly subscriptions.
-     - **Case 3:** New subscription is monthly while user has both monthly & yearly subscriptions.
-     - **Case 4:** New subscription is yearly while user has both monthly & yearly subscriptions.
+     - **Case 1:** New subscription is monthly and user has a yearly subscriptions but no monthly subscriptions.
+     - **Case 2:** New subscription is yearly and user has monthly subscription but no yearly subscriptions.
+     - **Case 3:** New subscription is monthly and user has monthly subscriptions.
+     - **Case 4:** New subscription is yearly and user has yearly subscriptions.
+     - **Case 5:** New subscription is monthly while user has both monthly & yearly subscriptions.
+     - **Case 6:** New subscription is yearly while user has both monthly & yearly subscriptions.
 
-<details><summary>Message Rendering Example</summary>
-
-Based on the case determined in the dynamic function, render one of the following messages:
-
-- **Case 1 (Monthly → Monthly):**  
-  Display:  
-  `"Subscribe today and only pay for the days left in your current monthly billing cycle. Your next full payment will be on <date_of_monthly_renewal>."`
-
-- **Case 2 (Yearly → Yearly):**  
-  Display:  
-  `"Subscribe today and only pay for the time left in your current yearly billing cycle. Your next full payment will be on <date_of_yearly_renewal>."`
-
-- **Case 3 (Monthly → Both Monthly & Yearly):**  
-  Display:  
-  `"Subscribe today and only pay for the days left in your other monthly billing cycle. Your next full payment will be on <date_of_monthly_renewal>. Your yearly subscriptions won't be affected by this change."`
-
-- **Case 4 (Yearly → Both Monthly & Yearly):**  
-  Display:  
-  `"Subscribe today and only pay for the time left in your other yearly billing cycles. Your next full payment will be on <date_of_yearly_renewal>. Your monthly subscriptions won't be affected by this change."`
-</details>  4. Updates the dedicated UI container for the informative message with the corresponding text.
 
 - **UI Container:**  
   Reserve a section at the top of the page (or above the plan selection) for the informative message. This container should be reactive so that its content updates instantly upon billing cycle changes.
-</details> 
 
 ### 3. Payment Method Section
 
