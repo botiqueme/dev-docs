@@ -23,7 +23,7 @@ Requires a **valid JWT token** to authenticate the user and ensure they have per
 | **Parameter**    | **Type**   | **Required** | **Description** |
 |-----------------|-----------|--------------|-----------------|
 | `property_id`   | UUID      | Yes          | The unique ID of the property to update. |
-| `name`          | String    | No           | The updated name of the property. |
+| `property_name`          | String    | No           | The updated name of the property. |
 | `description`   | String    | No           | The updated description for the property |
 
 ### **Example Request:**
