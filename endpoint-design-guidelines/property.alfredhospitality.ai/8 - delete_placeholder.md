@@ -1,4 +1,4 @@
-# **Endpoint: `/delete_placeholder/<property_id>/<placeholder_id>`**
+# **Endpoint: `/delete_placeholder`**
 
 ## **Purpose**
 This endpoint allows users to delete a placeholder from a specific property. If the placeholder was applied to all properties (`apply_to_all`), users can choose to remove it from **all properties** or only the current one.
@@ -11,7 +11,7 @@ This endpoint allows users to delete a placeholder from a specific property. If 
 `DELETE`
 
 ### **URL**
-`/delete_placeholder/<property_id>/<placeholder_id>`
+`/delete_placeholder`
 
 ### **Authentication**
 🔑 **JWT Token Required**
@@ -29,19 +29,6 @@ This endpoint allows users to delete a placeholder from a specific property. If 
 
 ---
 
-## **Example Requests**
-
-### **1️⃣ Remove placeholder from only the given property** (default)
-```
-DELETE /delete_placeholder/123e4567-e89b-12d3-a456-426614174000/789a4567-e89b-12d3-a456-426614174999
-Authorization: Bearer <JWT_TOKEN>
-```
-
-### **2️⃣ Remove placeholder from all properties where it was applied**
-```
-DELETE /delete_placeholder/123e4567-e89b-12d3-a456-426614174000/789a4567-e89b-12d3-a456-426614174999?apply_to_all=true
-Authorization: Bearer <JWT_TOKEN>
-```
 
 ---
 
@@ -82,18 +69,22 @@ Authorization: Bearer <JWT_TOKEN>
 
 ## **Implementation Code**
 ```python
-@v1.route('/delete_placeholder/<string:property_id>/<string:placeholder_id>', methods=['DELETE'])
+@v1.route('/delete_placeholder', methods=['DELETE'])
 @jwt_required()
 @limiter.limit("10 per hour")
-def delete_placeholder(property_id, placeholder_id):
+def delete_placeholder():
     """
     Deletes a custom placeholder from a property
     """
+    
     user_ip = utils.get_client_ip(request)
     current_app.logger.info(f"{user_ip} - /delete_placeholder Deleting custom placeholder.")
 
     try:
-        current_user_id = get_jwt_identity()
+        data = request.get_json()        
+        property_id = UUID(data.get("property_id"))
+        placeholder_id = data.get("placeholder_id")
+        current_user_id = UUID(get_jwt_identity())
 
         property_instance = Property.query.filter_by(id=property_id, user_id=current_user_id).first()
         if not property_instance:
@@ -108,9 +99,9 @@ def delete_placeholder(property_id, placeholder_id):
         
         # Controlla se il placeholder è associato alla proprietà specificata
         custom_feature_value = CustomFeatureValue.query.filter_by(property_id=property_id, feature_id=placeholder_id).first()
-        if not custom_feature_value:
-            current_app.logger.info(f"{user_ip} - /delete_placeholder Placeholder not found for this property")
-            return utils.jsonify_return_error("error", 404, "Placeholder not found for this property"), 404
+        # if not custom_feature_value:
+        #     current_app.logger.info(f"{user_ip} - /delete_placeholder Placeholder not found for this property")
+        #     return utils.jsonify_return_error("error", 404, "Placeholder not found for this property"), 404
         
         # Controlla se il parametro 'apply_to_all' è presente nei parametri della query
         apply_to_all = request.args.get('apply_to_all', 'false').lower() == 'true'
@@ -128,8 +119,13 @@ def delete_placeholder(property_id, placeholder_id):
             current_app.logger.info(f"{user_ip} - /delete_placeholder Placeholder deleted from all properties.")
             return utils.jsonify_return_success("success", 200, {"message": "Placeholder deleted from all properties."}), 200
         else:
+            current_app.logger.info(f"{user_ip} - TEST1")
+
             # Elimina il placeholder solo dalla proprietà specificata
-            db.session.delete(custom_feature_value)
+            if custom_feature_value:
+                db.session.delete(custom_feature_value)
+
+            db.session.delete(custom_feature)
             db.session.commit()
             
             current_app.logger.info(f"{user_ip} - /delete_placeholder Placeholder deleted from property.")
