@@ -1,4 +1,4 @@
-# **Endpoint: `/update_placeholder/<property_id>/<placeholder_id>`**
+# **Endpoint: `/update_placeholder`**
 
 ## **Purpose**
 This endpoint allows updating the value of an **existing placeholder** in a specified property.
@@ -11,7 +11,7 @@ This endpoint allows updating the value of an **existing placeholder** in a spec
 `PATCH`
 
 ### **URL**
-`/update_placeholder/<property_id>/<placeholder_id>`
+`/update_placeholder`
 
 ### **Authentication**
 🔑 **JWT Token Required (Access Token)**
@@ -22,17 +22,19 @@ This endpoint allows updating the value of an **existing placeholder** in a spec
 
 | **Parameter**       | **Type**  | **Required** | **Description** |
 |---------------------|-----------|--------------|-----------------|
-| `property_id`      | Path      | ✅ Yes        | The unique ID of the property where the placeholder exists. |
-| `placeholder_id`   | Path      | ✅ Yes        | The unique ID of the placeholder to be updated. |
+| `property_id`      | String      | ✅ Yes        | The unique ID of the property where the placeholder exists. |
+| `placeholder_name`   | String      | ✅ Yes        | The unique ID of the placeholder to be updated. |
 | `value`            | JSON Body | ✅ Yes        | The new value for the placeholder (type varies based on placeholder type). |
 
 ### **Example Request**
 ```
-PATCH /update_placeholder/123e4567-e89b-12d3-a456-426614174000/9876543210abcdef
+PATCH /update_placeholder
 Authorization: Bearer <JWT_TOKEN>
 Content-Type: application/json
 
 {
+  "property_id": "asdfasdf"
+  "placeholder_name": "try"
   "value": "New Placeholder Value"
 }
 ```
@@ -76,20 +78,24 @@ Content-Type: application/json
 
 ## **Implementation Code**
 ```python
-@v1.route('/update_placeholder/<string:property_id>/<string:placeholder_id>', methods=['PATCH'])
+@v1.route('/update_placeholder', methods=['PATCH'])
 @jwt_required()
-def update_placeholder(property_id, placeholder_id):
+def update_placeholder():
     """
     Updates the value of an existing placeholder in a property.
     Requires JWT authentication.
     """
 
+    
     user_ip = utils.get_client_ip(request)
-    current_app.logger.info(f"{user_ip} - /update_placeholder Updating placeholder {placeholder_id} for property {property_id}.")
+    current_app.logger.info(f"{user_ip} - /update_placeholder Updating placeholder")
 
     try:
+        data = request.get_json()
+        property_id = UUID(data.get("property_id"))
+        placeholder_name = data.get("placeholder_name")
         # Ottieni l'ID dell'utente dal token JWT
-        current_user_id = get_jwt_identity()
+        current_user_id = UUID(get_jwt_identity())
 
         # Verifica se la proprietà esiste e appartiene all'utente
         property_instance = Property.query.filter_by(id=property_id, user_id=current_user_id).first()
@@ -105,34 +111,49 @@ def update_placeholder(property_id, placeholder_id):
 
         new_value = data['value']
 
-        # Tenta di aggiornare il placeholder standard
-        standard_feature_value = PropertyFeatureValue.query.filter_by(property_id=property_id, feature_id=placeholder_id).first()
-        if standard_feature_value:
-            standard_feature_value.value = new_value
-            db.session.commit()
-            current_app.logger.info(f"{user_ip} - /update_placeholder Standard placeholder updated successfully.")
-            return utils.jsonify_return_success("success", 200, {"message": "Standard placeholder updated successfully."}), 200
 
-        # Se non è un placeholder standard, tenta di aggiornare il placeholder personalizzato
-        custom_feature_value = CustomFeatureValue.query.join(CustomFeature).filter(
-            CustomFeatureValue.property_id == property_id,
-            CustomFeatureValue.feature_id == placeholder_id,
-            CustomFeature.user_id == current_user_id
-        ).first()
+        # 1. Cerca il placeholder in PropertyFeature
+        standard_feature = PropertyFeature.query.filter_by(name=placeholder_name).first()
+        if standard_feature:
+            feature_id = standard_feature.id
 
-        if custom_feature_value:
-            custom_feature_value.value = new_value
-            db.session.commit()
-            current_app.logger.info(f"{user_ip} - /update_placeholder Custom placeholder updated successfully.")
-            return utils.jsonify_return_success("success", 200, {"message": "Custom placeholder updated successfully."}), 200
+            # 2. Aggiorna il valore corrispondente in PropertyFeatureValue
+            standard_feature_value = PropertyFeatureValue.query.filter_by(property_id=property_id, feature_id=feature_id).first()
+            if standard_feature_value:
+                standard_feature_value.value = new_value
+                db.session.commit()
+                current_app.logger.info(f"{user_ip} - /update_placeholder Standard placeholder updated successfully.")
+                return utils.jsonify_return_success("success", 201, {"message": "Standard placeholder updated successfully."}), 201
+            else:
+                # Se non esiste, crealo
+                new_feature_value = PropertyFeatureValue(property_id=property_id, feature_id=feature_id, value=new_value)
+                db.session.add(new_feature_value)
+                db.session.commit()
+                current_app.logger.info(f"{user_ip} - /update_placeholder Standard placeholder created successfully.")
+                return utils.jsonify_return_success("success", 201, {"message": "Standard placeholder Value created successfully."}), 201
+
+        # 3. Se non l'abbiamo trovato in PropertyFeature, cerchiamo in CustomFeature
+        custom_feature = CustomFeature.query.filter_by(name=placeholder_name, user_id=current_user_id).first()
+        if custom_feature:
+            feature_id = custom_feature.id
+
+            # 4. Aggiorna il valore corrispondente in CustomFeatureValue
+            custom_feature_value = CustomFeatureValue.query.filter_by(property_id=property_id, feature_id=feature_id).first()
+            if custom_feature_value:
+                custom_feature_value.value = new_value
+                db.session.commit()
+                current_app.logger.info(f"{user_ip} - /update_placeholder Custom placeholder updated successfully.")
+                return utils.jsonify_return_success("success", 201, {"message": "Custom placeholder updated successfully."}), 201
 
         # Se il placeholder non esiste né come standard né come personalizzato
         current_app.logger.info(f"{user_ip} - /update_placeholder Placeholder not found.")
         return utils.jsonify_return_error("error", 404, "Placeholder not found."), 404
 
+
     except Exception as e:
         current_app.logger.error(f"{user_ip} - /update_placeholder Internal Server Error. {e}")
         return utils.jsonify_return_error("error", 500, "Internal Server Error."), 500
+
 
 ```
 
