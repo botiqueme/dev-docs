@@ -1,4 +1,4 @@
-### **Endpoint: `/add_placeholder/<property_id>`**
+### **Endpoint: `/add_placeholder**
 
 #### **Purpose**
 Allows a user to add a new placeholder to a specific property. Placeholders can store text, images, videos, phone numbers, or other custom data for the property.
@@ -11,7 +11,7 @@ Allows a user to add a new placeholder to a specific property. Placeholders can 
 `POST`
 
 ### **URL**
-`/add_placeholder/<property_id>`
+`/add_placeholder
 
 ### **Authentication**
 🔑 **JWT (Access Token Required)**  
@@ -21,14 +21,11 @@ The request must be authenticated, and the user must have access to the specifie
 
 ## **2. Request Parameters**
 
-### **Path Parameter**
-| **Parameter**  | **Type**  | **Required** | **Description**                       |
-|---------------|-----------|--------------|---------------------------------------|
-| `property_id` | Path      | Yes          | The unique identifier of the property.|
 
 ### **Request Body**
 | **Field**      | **Type** | **Required** | **Description**                       |
 |----------------|----------|--------------|---------------------------------------|
+| `property_id` | String      | Yes          | The unique identifier of the property.|
 | `name`         | String   | Yes          | The name of the placeholder.          |
 | `type`         | String   | Yes          | The type of the placeholder. Allowed values: `text`, `number`, `email`, `address`, `image`, `video`, or `custom`. |
 | `value`        | String   | Yes          | The value of the placeholder.         |
@@ -37,10 +34,11 @@ The request must be authenticated, and the user must have access to the specifie
 **Example Request:**
 ```json
 {
+  "property_id": "asdfsdfasdfasdf"
   "name": "Welcome Message",
   "type": "text",
   "value": "Welcome to our property!",
-  "apply_to_all": false
+  "apply_to_all": 0
 }
 ```
 
@@ -121,9 +119,10 @@ The request must be authenticated, and the user must have access to the specifie
 ## **4. Implementation Code**
 
 ```python
-@v1.route('/add_placeholder/<property_id>', methods=['POST'])
+
+@v1.route('/add_placeholder', methods=['POST'])
 @jwt_required()
-def add_placeholder(property_id):
+def add_placeholder():
     """
     Adds a new custom placeholder to a specific property.
     If 'apply_to_all' is set to True, it applies the placeholder to all the user's properties.
@@ -132,15 +131,17 @@ def add_placeholder(property_id):
     user_ip = utils.get_client_ip(request)
     current_app.logger.info(f"{user_ip} - /add_placeholder Adding custom placeholder.")
 
-    user_id = get_jwt_identity()
+    data = request.get_json()
+    property_id = data.get("property_id")
+
+    user_id = UUID(get_jwt_identity())
     # Verifica che la proprietà appartenga all'utente
-    property_instance = Property.query.filter_by(id=property_id, user_id=user_id).first()
+    property_instance = Property.query.filter_by(id=UUID(property_id), user_id=user_id).first()
     if not property_instance:
         current_app.logger.info(f"{user_ip} - /add_placeholder Property not found")
         return utils.jsonify_return_error("error", 404, "Property not found"), 404
     
     # Estrarre i dati dalla richiesta
-    data = request.get_json()
     name = data.get("name", "").strip()
     placeholder_type = data.get("type", "").strip().lower()
     value = data.get("value", "").strip()
@@ -152,38 +153,32 @@ def add_placeholder(property_id):
         return utils.jsonify_return_error("error", 400, "Missing required fields: name or type."), 400
 
     # Validazione del tipo di dato
-    valid_data_types = {"string", "integer", "boolean", "text", "float"}
+    valid_data_types = {"string", "integer", "float", "boolean", "image", "video", "url", "list"}
     if placeholder_type not in valid_data_types:
         current_app.logger.info(f"{user_ip} - /add_placeholder Invalid data_type")
         return utils.jsonify_return_error("error", 400, f"Invalid data_type: {placeholder_type}. Allowed: {valid_data_types}"), 400
 
-    # Verifica se la feature esiste già per l'utente
-    existing_feature = CustomFeature.query.filter_by(user_id=user_id, name=name).first()
+    existing_standard_feature = PropertyFeature.query.filter_by(name=name).first()
+    existing_custom_feature = CustomFeature.query.filter_by(user_id=user_id, name=name).first()
 
-    if existing_feature:
-        feature_id = existing_feature.id 
-    else:
-        # Creiamo una nuova feature personalizzata
-        new_feature = CustomFeature(
-            user_id=user_id,
-            name=name,
-            data_type=placeholder_type,
-            make_available_for_all=apply_to_all
-        )
-        db.session.add(new_feature)
-        db.session.commit()  # Commit immediato per ottenere l'ID
-        feature_id = new_feature.id
 
-    # Controlliamo se il valore per questa proprietà esiste già
-    existing_value = CustomFeatureValue.query.filter_by(property_id=property_id, feature_id=feature_id).first()
+    if existing_standard_feature or existing_custom_feature:
+        current_app.logger.info(f"{user_ip} - /add_placeholder Feature already exists for this user.")
+        return utils.jsonify_return_error("error", 409, "This placeholder name already exists for this user."), 409
 
-    if existing_value:
-        current_app.logger.info(f"{user_ip} - /add_placeholder Placeholder already exists for this property.")
-        return utils.jsonify_return_error("error", 409, "This placeholder already exists for this property."), 409
+    new_feature = CustomFeature(
+        user_id=user_id,
+        name=name,
+        data_type=placeholder_type,
+        make_available_for_all=apply_to_all
+    )
+    db.session.add(new_feature)
+    db.session.commit()  # Commit immediato per ottenere l'ID
+    feature_id = new_feature.id
 
     # Aggiungiamo il valore per questa proprietà
     new_value = CustomFeatureValue(
-        property_id=property_id,
+        property_id=UUID(property_id),
         feature_id=feature_id,
         value=value
     )
