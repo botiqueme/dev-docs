@@ -44,9 +44,9 @@ Appears when user clocks on **Add a placeholder**. The user can customize:
 > Note ON DESCRIPTION: when user clicks on the modify icon next to the description, the description becomes editable
 > ![editable description](./images/custom%20description.png)
 
-> IF USER ENTERS TEXT VALUE: when a value is set, the appearance is the same as the one of standard textual placeholders
+> IF USER ENTERS TEXT VALUE: when a value is set, the appearance is the same as the one of standard textual placeholders when modified
 
-> IF USER ENTERS MEDIA VALUE: when a value is set, the appearance is the same as the one of standard media placeholders
+> IF USER ENTERS MEDIA VALUE: when a value is set, the appearance is the same as the one of standard media placeholders when modifief
 
 
 ## Save buttons
