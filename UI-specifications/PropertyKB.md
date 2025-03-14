@@ -3,7 +3,10 @@
 Let's clarify how placeholder may evolve.
 
 Placeholders may be of three types types:
-- standard textual: the label and description are given by us and it's unchangeable, the value is changeable.
+
+### Standard textual
+
+The label and description are given by us and it's unchangeable, the value is changeable.
 
 ![standard textual](./images/standard%20textual.png)
 
@@ -14,7 +17,9 @@ When user starts modifying it, it turns red to show modification occurred. It st
 > Note: the arrow on the right retrieves the last saved value.
 
 
-- standard media: the label and description are given by us and it's unchangeable, the value can is changeable
+### Standard media 
+
+The label and description are given by us and it's unchangeable, the value can is changeable
 
 ![standard media](./images/standard%20media.png)
 
@@ -24,7 +29,9 @@ When clicking camera or video icon, opens file system. The other icons save or d
 > ![standard media uploaded](./images/standard%20media%20uploaded.png)
 > If the file is heavier than 25Mb, can the value turn red as well?
 
-- custom textual or media, based on the user interaction. The user can customize:
+### Custom textual or media (based on the user interaction). 
+
+Appears when user clocks on **Add a placeholder**. The user can customize:
     - label, 
     - description
     - value, and the value can be either textual or media based on the user input
