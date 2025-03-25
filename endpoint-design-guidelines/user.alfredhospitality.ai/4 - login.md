@@ -65,7 +65,6 @@ def login():
    - Verify if the user's email is verified (`is_verified`).
    - Verify if the account is **active (`is_active`)**.
    - If `is_verified` is `False`, return a `403 Forbidden` error.
-   - If `is_active` is `False`, return a `403 Forbidden` error with a message prompting reactivation.
 
 3. **Verify Password**:
    - Use `bcrypt` to compare the provided password with the hashed one in the database.
@@ -75,7 +74,6 @@ def login():
    - Create an access token (`JWT`) with:
      - `user_id`: The user's unique ID.
      - `email`: The user's email.
-     - `is_active`: The current user status.
      - `exp`: Token expiration (e.g., 1 hour).
    - Sign the token with the backend's secret key.
 
