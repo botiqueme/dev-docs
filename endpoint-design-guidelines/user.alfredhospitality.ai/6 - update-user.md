@@ -2,7 +2,7 @@
 
 ## 1. Details
 - **URL**: `/update_user`
-- **Method**: `PUT` or `PATCH` (preferred for partial updates).
+- **Method**:`PATCH`.
 - **Authentication**: Requires a JWT token to identify and authorize the user.
 - **Purpose**: Allows users to update their personal information.
 
@@ -19,11 +19,18 @@ The request body must be in JSON format. Updatable fields:
 
 | **Field**       | **Type**  | **Description**                                 |
 |-----------------|-----------|-------------------------------------------------|
+| `is_company`    | String    | Boolean if the user is a company or not         |
 | `name`          | String    | User's first name.                              |
 | `surname`       | String    | User's last name.                               |
 | `phone_number`  | String    | User's phone number (validated format).         |
-| `company`       | String    | User's company name.                            |
+| `billing_address` | String  | Billing Adress                                  |
+| `company_name`   | String    | User's company name.                           |
 | `vat_number`    | String    | User's VAT number (validated format).           |
+| `company_billing_address` | String | Company billing address                  |
+| `company_phone_number`  |  String | Company phone number                      |
+| `job_title`     | String     | job title in the company of the user           |
+
+
 
 Note: Each filed has to be validated before going into the database (frontend)
 
@@ -126,54 +133,103 @@ def update_user():
     Endpoint per aggiornare le informazioni dell'utente.
     Richiede autenticazione tramite JWT.
     """
+    user_ip = utils.get_client_ip(request)
+    current_app.logger.info(f"{user_ip} - /update_user Updating user info.")
+    
+
     try:
         # Ottieni l'ID dell'utente dal token JWT
-        user_id = get_jwt_identity()
+        current_user_id = UUID(get_jwt_identity())
 
         # Recupera l'utente dal database
-        user = User.query.get(user_id)
-        if not user:
+        current_user = User.query.filter_by(user_id=current_user_id).first()
+        
+        if not current_user:
+            current_app.logger.info(f"{user_ip} - /update_user User not found")
+
             return utils.jsonify_return_error("error", 404, "User not found"), 404
         
         # Recupera i dati dal corpo della richiesta
         data = request.get_json()
+
         if not data:
+            current_app.logger.info(f"{user_ip} - /update_user No data provided")
             return utils.jsonify_return_error("error", 400, "No data provided"), 400
         
-        # Aggiorna i campi forniti nella richiesta
-        if 'name' in data:
-            user.name = data['name']
-        if 'surname' in data:
-            user.surname = data['surname']
-        if 'phone_number' in data:
-            user.phone_number = data['phone_number']
-        if 'company' in data:
-            user.company = data['company']
-        if 'vat_number' in data:
-            user.vat_number = data['vat_number']
+                # Gestione cambio tipo di utente (is_company)
+        if 'is_company' in data:
+            new_is_company = data['is_company']
+            if new_is_company != current_user.is_company:
+                current_app.logger.info(f"{user_ip} - /update_user Changing is_company status to {new_is_company}")
+                current_user.is_company = new_is_company
+
+                if new_is_company:
+                    # Da individuale a aziendale: verifica campi aziendali obbligatori
+                    required_company_fields = ["company_name", "vat_number", "company_billing_address", "company_phone_number", "job_title"]
+                    for field in required_company_fields:
+                        if field not in data or not data[field]:
+                            current_app.logger.info(f"{user_ip} - /update_user {field.replace('_', ' ').capitalize()} is required for company registration.")
+                            return utils.jsonify_return_error("Error", 400, f"{field.replace('_', ' ').capitalize()} is required for company registration."), 400
+                else:
+                    # Da aziendale a individuale: rimuovi campi aziendali
+                    current_user.company_name = None
+                    current_user.vat_number = None
+                    current_user.company_billing_address = None
+                    current_user.company_phone_number = None
+                    current_user.job_title = None
+
+        # Campi aggiornabili per tutti
+        updatable_fields = ["name", "surname", "phone_number", "billing_address"]
+        # Campi aggiornabili solo per aziende
+        company_fields = ["company_name", "vat_number", "company_billing_address", "company_phone_number", "job_title"]
+
+        # Aggiorna i campi comuni
+        for field in updatable_fields:
+            if field in data and data[field]:
+                setattr(current_user, field, data[field])
+
+        # Gestione campi aziendali solo se l'utente è aziendale
+        if current_user.is_company:
+            for field in company_fields:
+                if field in data and data[field]:
+                    setattr(current_user, field, data[field])
         
         # Salva le modifiche nel database
         try:
             db.session.commit()
-        except Exception:
+        except Exception as e:
             db.session.rollback()
+            current_app.logger.error(f"{user_ip} - /update_user An error occurred while updating the user: {e}")
             return utils.jsonify_return_error("error", 500, "An error occurred while updating the user"), 500
+
 
         # Prepara i dati aggiornati per la risposta
         updated_data = {
-            "name": user.name,
-            "surname": user.surname,
-            "phone_number": user.phone_number,
-            "company": user.company,
-            "vat_number": user.vat_number
+            "name": current_user.name,
+            "surname": current_user.surname,
+            "phone_number": current_user.phone_number,
+            "billing_address": current_user.billing_address,
+            "job_title": current_user.job_title,
+            "is_company": current_user.is_company
         }
+        
+        # Aggiungi campi aziendali se applicabili
+        if current_user.is_company:
+            updated_data.update({
+                "company_name": current_user.company_name,
+                "vat_number": current_user.vat_number,
+                "company_billing_address": current_user.company_billing_address,
+                "company_phone_number": current_user.company_phone_number
+            })
 
         # Restituisce una risposta di successo con i dati aggiornati
+        current_app.logger.info(f"{user_ip} - /update_user User updated successfully")
         return utils.jsonify_return_success("success", 200, updated_data), 200
+
     except Exception as e:
         # Gestione di errori imprevisti
+        current_app.logger.error(f"{user_ip} - /update_user Unexpected error: {e}")
         return utils.jsonify_return_error("error", 500, "An unexpected error occurred"), 500
-
 ```
 
 ## 6. Validations to Implement
