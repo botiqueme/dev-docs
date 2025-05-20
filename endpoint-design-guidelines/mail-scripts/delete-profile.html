@@ -1,0 +1,74 @@
+<!-- 
+INSTRUZIONI PER IL BACKEND:
+
+Questa email conferma l'eliminazione o la pianificazione di eliminazione del profilo utente.
+
+- Usa la variabile booleana `hasActiveSubscriptions`
+- Se TRUE → l'account ha ancora abbonamenti attivi → la cancellazione sarà posticipata alla fine del ciclo
+- Se FALSE → nessun abbonamento attivo → la cancellazione è immediata
+
+Variabili richieste:
+- {{firstName}} → nome utente
+- {{year}} → anno corrente
+-->
+
+<!DOCTYPE html>
+<html lang="en" style="font-family: Montserrat, sans-serif;">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Profile Deletion Notice</title>
+</head>
+<body style="margin: 0; padding: 0; background-color: #f8f8f8; font-family: Montserrat, sans-serif;">
+  <table align="center" cellpadding="0" cellspacing="0" width="100%" bgcolor="#f8f8f8" style="padding: 20px 0;">
+    <tr>
+      <td>
+        <table align="center" cellpadding="0" cellspacing="0" width="600" bgcolor="#ffffff" style="border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); overflow: hidden;">
+          
+          <!-- Header -->
+          <tr>
+            <td align="center" style="padding: 24px; background: linear-gradient(to bottom, #ff3d3d, #ff6a6a);">
+              <!-- <img src="https://alfredco.host/assets/logo.png" alt="Alfred Hospitality AI Logo" width="160" style="display: block;" /> -->
+              <h1 style="margin: 0; color: white; font-size: 24px;">Alfred Hospitality AI</h1>
+              <p style="margin: 4px 0 0; color: white; font-size: 14px;">powered by Botique.me</p>
+            </td>
+          </tr>
+
+          <!-- Body -->
+          <tr>
+            <td style="padding: 30px; color: #333333; font-size: 16px; line-height: 1.6;">
+              <p style="margin-top: 0;">Hi {{firstName}},</p>
+
+              
+
+              {% if hasActiveSubscriptions %}
+              <p>Your profile has been scheduled for deletion.</p>
+                <p>Your data will be permanently deleted at the end of your last subscription’s billing cycle. Until then, your profile and data will remain accessible.</p>
+                <p>This includes your host information, billing details, and property library. All automatic renewals have been disabled and will not resume.</p>
+                <p>If you change your mind before deletion,<span style="color: #ff3d3d; font-weight: bold;"> you can recover your profile by reactivating a subscription from the login page.</span></p>
+              {% else %}
+              <p>We’ve received your request to delete your profile. </p>
+                <p>Your data has been permanently deleted since you had no active subscriptions. This includes your host information, billing details, and property library.</p>
+                <p>If you deleted your profile by mistake, please contact us as soon as possible at <a href="mailto:support@alfredco.host" style="color: #ff3d3d; text-decoration: none;">support@alfredco.host</a> and we’ll investigate whether your profile can still be recovered.</p>
+                </p>
+              {% endif %}
+
+              <p>Best regards,<br />
+              The Alfred Hospitality AI team</p>
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td bgcolor="#f1f1f1" style="padding: 20px; font-size: 12px; color: #888888; text-align: center;">
+              © {{year}} Alfred Hospitality AI — All rights reserved.<br />
+              <a href="mailto:support@alfredco.host" style="color: #888888; text-decoration: underline;">support@alfredco.host</a>
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
