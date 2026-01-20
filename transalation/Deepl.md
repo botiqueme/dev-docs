@@ -1,6 +1,3 @@
-Here is the updated **Full Technical Specification** for your GitHub `Deepl.md` file. I have refined the instructions for **@Abdullah** to explain exactly how to move away from hard-coded text, added recursive logic for **@Michele**'s script, and included **@Sarah**'s hospitality terms.
-
----
 
 # Project: Platform Localization via DeepL API
 
