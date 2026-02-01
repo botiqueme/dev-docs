@@ -1,4 +1,4 @@
-````markdown
+
 # User onboarding
 Opzione consigliata: prefill dell’email + account linking guidato
 
@@ -245,5 +245,4 @@ Note:
 * Formato e endpoint del calendar export (ICS o equivalente)
 * Conservazione dei dati e responsabilità di compliance
 
-```
-```
+
