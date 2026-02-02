@@ -1,0 +1,1018 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Alfred + Amenitiz - Propuesta de Integración Marketplace</title>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+    <style>
+        :root {
+            --primary: #2563eb;
+            --primary-dark: #1d4ed8;
+            --success: #059669;
+            --warning: #d97706;
+            --danger: #dc2626;
+            --gray-50: #f9fafb;
+            --gray-100: #f3f4f6;
+            --gray-200: #e5e7eb;
+            --gray-600: #4b5563;
+            --gray-800: #1f2937;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            line-height: 1.5;
+            color: var(--gray-800);
+            background: var(--gray-50);
+            padding: 1.5rem;
+            font-size: 0.9rem;
+        }
+        
+        .container {
+            max-width: 880px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+            color: white;
+            padding: 1.5rem;
+            text-align: center;
+        }
+        
+        .header h1 {
+            font-size: 1.5rem;
+            margin-bottom: 0.25rem;
+        }
+        
+        .header .subtitle {
+            opacity: 0.9;
+            font-size: 0.9rem;
+        }
+        
+        .content {
+            padding: 1.5rem;
+        }
+        
+        .greeting {
+            font-size: 0.95rem;
+            margin-bottom: 1.25rem;
+            color: var(--gray-600);
+        }
+        
+        .section {
+            margin-bottom: 2rem;
+        }
+        
+        .section-title {
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+            font-size: 1.1rem;
+            color: var(--primary);
+            margin-bottom: 0.75rem;
+            padding-bottom: 0.4rem;
+            border-bottom: 2px solid var(--gray-200);
+        }
+        
+        .section-number {
+            background: var(--primary);
+            color: white;
+            width: 26px;
+            height: 26px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            font-size: 0.8rem;
+        }
+        
+        .question {
+            background: var(--gray-100);
+            padding: 0.7rem 0.9rem;
+            border-radius: 6px;
+            margin-bottom: 0.75rem;
+            border-left: 3px solid var(--primary);
+        }
+        
+        .question-text {
+            font-weight: 600;
+            color: var(--gray-600);
+            font-size: 0.85rem;
+        }
+        
+        .answer {
+            padding: 0 0 0.75rem 0;
+            font-size: 0.88rem;
+        }
+        
+        .answer p {
+            margin-bottom: 0.75rem;
+        }
+        
+        .status-box {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+            padding: 0.3rem 0.7rem;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 500;
+            margin: 0.15rem 0.4rem 0.15rem 0;
+        }
+        
+        .status-ready {
+            background: #d1fae5;
+            color: #065f46;
+        }
+        
+        .status-needed {
+            background: #fef3c7;
+            color: #92400e;
+        }
+        
+        .status-critical {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+        
+        .status-unavailable {
+            background: #f3f4f6;
+            color: #6b7280;
+        }
+        
+        .mermaid-container {
+            background: var(--gray-50);
+            border: 1px solid var(--gray-200);
+            border-radius: 6px;
+            padding: 1rem;
+            margin: 1rem 0;
+            overflow-x: auto;
+        }
+        
+        .mermaid-title {
+            font-weight: 600;
+            color: var(--gray-600);
+            margin-bottom: 0.75rem;
+            font-size: 0.85rem;
+        }
+        
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 0.75rem 0;
+            font-size: 0.8rem;
+        }
+        
+        .data-table th,
+        .data-table td {
+            padding: 0.5rem 0.6rem;
+            text-align: left;
+            border-bottom: 1px solid var(--gray-200);
+        }
+        
+        .data-table th {
+            background: var(--gray-100);
+            font-weight: 600;
+            color: var(--gray-600);
+            font-size: 0.75rem;
+        }
+        
+        .data-table tr:hover {
+            background: var(--gray-50);
+        }
+        
+        .data-table.compact td,
+        .data-table.compact th {
+            padding: 0.35rem 0.5rem;
+            font-size: 0.75rem;
+        }
+        
+        .data-table.compact code {
+            font-size: 0.7rem;
+            padding: 0.1rem 0.3rem;
+        }
+        
+        .endpoint-box {
+            background: #1e293b;
+            color: #e2e8f0;
+            padding: 0.6rem 0.8rem;
+            border-radius: 5px;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 0.78rem;
+            margin: 0.4rem 0;
+            overflow-x: auto;
+        }
+        
+        .endpoint-method {
+            color: #4ade80;
+            font-weight: 600;
+        }
+        
+        .highlight-box {
+            background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+            border: 1px solid #bfdbfe;
+            border-radius: 6px;
+            padding: 0.9rem;
+            margin: 0.75rem 0;
+            font-size: 0.85rem;
+        }
+        
+        .highlight-box.success {
+            background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
+            border-color: #a7f3d0;
+        }
+        
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 0.75rem;
+            margin: 1rem 0;
+        }
+        
+        .summary-card {
+            background: white;
+            border: 1px solid var(--gray-200);
+            border-radius: 6px;
+            padding: 0.9rem;
+            text-align: center;
+        }
+        
+        .summary-card .label {
+            font-size: 0.75rem;
+            color: var(--gray-600);
+            margin-bottom: 0.3rem;
+        }
+        
+        .summary-card .value {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: var(--primary);
+        }
+        
+        .summary-card .value.success {
+            color: var(--success);
+        }
+        
+        .footer {
+            background: var(--gray-100);
+            padding: 1.25rem 1.5rem;
+            font-size: 0.88rem;
+        }
+        
+        .footer p {
+            color: var(--gray-600);
+            margin-bottom: 0.4rem;
+        }
+        
+        .footer .signature {
+            margin-top: 0.75rem;
+            color: var(--gray-800);
+        }
+        
+        .footer .contact {
+            font-size: 0.82rem;
+            color: var(--gray-600);
+        }
+        
+        ul {
+            margin: 0.4rem 0 0.75rem 1.25rem;
+            font-size: 0.88rem;
+        }
+        
+        li {
+            margin-bottom: 0.35rem;
+        }
+        
+        ol {
+            margin: 0.4rem 0 0.75rem 1.25rem;
+            font-size: 0.88rem;
+        }
+        
+        code {
+            background: var(--gray-100);
+            padding: 0.15rem 0.4rem;
+            border-radius: 3px;
+            font-family: 'Consolas', monospace;
+            font-size: 0.82em;
+        }
+        
+        .inline-badge {
+            display: inline-block;
+            padding: 0.1rem 0.4rem;
+            border-radius: 3px;
+            font-size: 0.72rem;
+            font-weight: 500;
+        }
+        
+        .badge-green {
+            background: #d1fae5;
+            color: #065f46;
+        }
+        
+        .badge-blue {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+        
+        .phase-box {
+            border: 1px solid var(--gray-200);
+            border-radius: 6px;
+            padding: 0.9rem;
+            margin: 0.75rem 0;
+        }
+        
+        .phase-box h4 {
+            font-size: 0.9rem;
+            color: var(--primary);
+            margin-bottom: 0.5rem;
+        }
+        
+        .phase-box p {
+            font-size: 0.85rem;
+            margin-bottom: 0.5rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Alfred + Amenitiz</h1>
+            <p class="subtitle">Propuesta Técnica de Integración Marketplace</p>
+        </div>
+        
+        <div class="content">
+            <p class="greeting">
+                Hola,<br><br>
+                Gracias por compartir la propuesta con el equipo de producto. A continuación proporciono toda la información técnica solicitada para facilitar la evaluación de factibilidad.
+            </p>
+
+            <div class="highlight-box success">
+                <strong>Resumen Ejecutivo:</strong> Alfred ya ha completado el 85% del desarrollo necesario utilizando la Vendor API existente. Solo requerimos acceso a endpoints de mensajería (lectura/escritura) y webhooks de notificación. <strong>No se requiere desarrollo complejo por parte de Amenitiz.</strong>
+            </div>
+
+            <div class="summary-grid">
+                <div class="summary-card">
+                    <div class="label">Integración Completada</div>
+                    <div class="value success">85%</div>
+                </div>
+                <div class="summary-card">
+                    <div class="label">Endpoints Ya Testeados</div>
+                    <div class="value">2</div>
+                </div>
+                <div class="summary-card">
+                    <div class="label">Desarrollo Amenitiz</div>
+                    <div class="value success">Mínimo</div>
+                </div>
+            </div>
+
+            <!-- SECCIÓN 1 -->
+            <div class="section">
+                <h2 class="section-title">
+                    <span class="section-number">1</span>
+                    Tests de Integración Realizados
+                </h2>
+
+                <div class="question">
+                    <p class="question-text">¿Qué flujos de datos habéis probado usando las APIs de Amenitiz?</p>
+                </div>
+                
+                <div class="answer">
+                    <p>Hemos testeado exitosamente la integración utilizando las <strong>APIs Vendor de Okey Homes</strong>. Los datos actualmente sincronizados constituyen el <strong>85% de la información</strong> necesaria para el servicio completo.</p>
+                </div>
+
+                <div class="question">
+                    <p class="question-text">¿Qué endpoints se utilizan actualmente?</p>
+                </div>
+                
+                <div class="answer">
+                    <div class="endpoint-box">
+                        <span class="endpoint-method">GET</span> /vendor_api/v1/content?hotel_id={hotel_id}
+                    </div>
+                    <div class="endpoint-box">
+                        <span class="endpoint-method">GET</span> /vendor_api/v1/bookings/checkin?hotel_id={id}&from={date}&to={date}
+                    </div>
+                    <p style="margin-top: 0.5rem;">Ambos endpoints funcionan correctamente en modo <span class="inline-badge badge-green">Solo Lectura</span></p>
+                </div>
+
+                <div class="question">
+                    <p class="question-text">Mapeo Completo de Datos Alfred ↔ Amenitiz</p>
+                </div>
+                
+                <div class="answer">
+                    <table class="data-table compact">
+                        <thead>
+                            <tr>
+                                <th>Campo Alfred</th>
+                                <th>Sorgente Amenitiz</th>
+                                <th>Endpoint API</th>
+                                <th>Estado</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><code>hotel_id</code></td>
+                                <td><code>hotel_id</code></td>
+                                <td>GET /content</td>
+                                <td><span class="status-box status-ready">✓</span></td>
+                            </tr>
+                            <tr>
+                                <td><code>hotel_name</code></td>
+                                <td><code>hotel_name</code></td>
+                                <td>GET /content</td>
+                                <td><span class="status-box status-ready">✓</span></td>
+                            </tr>
+                            <tr>
+                                <td><code>property_id</code></td>
+                                <td><code>rooms[].room_id</code></td>
+                                <td>GET /bookings/checkin</td>
+                                <td><span class="status-box status-ready">✓</span></td>
+                            </tr>
+                            <tr>
+                                <td><code>individual_room_id</code></td>
+                                <td><code>rooms[].individual_room_id</code></td>
+                                <td>GET /bookings/checkin</td>
+                                <td><span class="status-box status-ready">✓</span></td>
+                            </tr>
+                            <tr>
+                                <td><code>individual_room_name</code></td>
+                                <td><code>rooms[].individual_room_name</code></td>
+                                <td>GET /bookings/checkin</td>
+                                <td><span class="status-box status-ready">✓</span></td>
+                            </tr>
+                            <tr>
+                                <td><code>individual_room_number</code></td>
+                                <td><code>rooms[].individual_room_number</code></td>
+                                <td>GET /bookings/checkin</td>
+                                <td><span class="status-box status-ready">✓</span></td>
+                            </tr>
+                            <tr>
+                                <td><code>reservation_id</code></td>
+                                <td><code>booking_id</code></td>
+                                <td>GET /bookings/checkin</td>
+                                <td><span class="status-box status-ready">✓</span></td>
+                            </tr>
+                            <tr>
+                                <td><code>check_in_date</code></td>
+                                <td><code>checkin</code></td>
+                                <td>GET /bookings/checkin</td>
+                                <td><span class="status-box status-ready">✓</span></td>
+                            </tr>
+                            <tr>
+                                <td><code>check_out_date</code></td>
+                                <td><code>checkout</code></td>
+                                <td>GET /bookings/checkin</td>
+                                <td><span class="status-box status-ready">✓</span></td>
+                            </tr>
+                            <tr>
+                                <td><code>reservation_status</code></td>
+                                <td><code>status</code></td>
+                                <td>GET /bookings/checkin</td>
+                                <td><span class="status-box status-ready">✓</span></td>
+                            </tr>
+                            <tr>
+                                <td><code>adults</code></td>
+                                <td><code>adults</code></td>
+                                <td>GET /bookings/checkin</td>
+                                <td><span class="status-box status-ready">✓</span></td>
+                            </tr>
+                            <tr>
+                                <td><code>children</code></td>
+                                <td><code>children</code></td>
+                                <td>GET /bookings/checkin</td>
+                                <td><span class="status-box status-ready">✓</span></td>
+                            </tr>
+                            <tr>
+                                <td><code>ota_provider</code></td>
+                                <td><code>source</code></td>
+                                <td>GET /bookings/checkin</td>
+                                <td><span class="status-box status-ready">✓</span></td>
+                            </tr>
+                            <tr>
+                                <td><code>booker_firstname</code></td>
+                                <td><code>booker.first_name</code></td>
+                                <td>GET /bookings/checkin</td>
+                                <td><span class="status-box status-ready">✓</span></td>
+                            </tr>
+                            <tr>
+                                <td><code>booker_lastname</code></td>
+                                <td><code>booker.last_name</code></td>
+                                <td>GET /bookings/checkin</td>
+                                <td><span class="status-box status-ready">✓</span></td>
+                            </tr>
+                            <tr>
+                                <td><code>booker_email</code></td>
+                                <td><code>booker.email</code></td>
+                                <td>GET /bookings/checkin</td>
+                                <td><span class="status-box status-ready">✓</span></td>
+                            </tr>
+                            <tr>
+                                <td><code>booker_phone</code></td>
+                                <td><code>booker.phone</code></td>
+                                <td>GET /bookings/checkin</td>
+                                <td><span class="status-box status-ready">✓</span></td>
+                            </tr>
+                            <tr>
+                                <td><code>booker_language</code></td>
+                                <td><code>booker.language</code></td>
+                                <td>GET /bookings/checkin</td>
+                                <td><span class="status-box status-ready">✓</span></td>
+                            </tr>
+                            <tr>
+                                <td><code>guests_array</code></td>
+                                <td><code>rooms[].guests[]</code></td>
+                                <td>GET /bookings/checkin</td>
+                                <td><span class="status-box status-ready">✓</span></td>
+                            </tr>
+                            <tr>
+                                <td><code>guests_count</code></td>
+                                <td><code>count(rooms[].guests[])</code></td>
+                                <td>GET /bookings/checkin</td>
+                                <td><span class="status-box status-ready">✓</span></td>
+                            </tr>
+                            <tr>
+                                <td><code>total_amount</code></td>
+                                <td><code>total_amount_after_tax</code></td>
+                                <td>GET /bookings/checkin</td>
+                                <td><span class="status-box status-ready">✓</span></td>
+                            </tr>
+                            <tr>
+                                <td><code>currency</code></td>
+                                <td><code>currency_code</code></td>
+                                <td>GET /bookings/checkin</td>
+                                <td><span class="status-box status-ready">✓</span></td>
+                            </tr>
+                            <tr>
+                                <td><code>online_checkin_url</code></td>
+                                <td><code>online_checkin_url</code></td>
+                                <td>GET /bookings/checkin</td>
+                                <td><span class="status-box status-ready">✓</span></td>
+                            </tr>
+                            <tr>
+                                <td><code>online_checkin_registered</code></td>
+                                <td><code>online_checkin_registered</code></td>
+                                <td>GET /bookings/checkin</td>
+                                <td><span class="status-box status-ready">✓</span></td>
+                            </tr>
+                            <tr style="background: #fef3c7;">
+                                <td><code>payment_status</code></td>
+                                <td colspan="2">No disponible actualmente</td>
+                                <td><span class="status-box status-unavailable">—</span></td>
+                            </tr>
+                            <tr style="background: #fef3c7;">
+                                <td><code>payment_amount_paid</code></td>
+                                <td colspan="2">No disponible actualmente</td>
+                                <td><span class="status-box status-unavailable">—</span></td>
+                            </tr>
+                            <tr style="background: #fef3c7;">
+                                <td><code>payment_amount_due</code></td>
+                                <td colspan="2">No disponible actualmente</td>
+                                <td><span class="status-box status-unavailable">—</span></td>
+                            </tr>
+                            <tr style="background: #fef3c7;">
+                                <td><code>payment_method</code></td>
+                                <td colspan="2">No disponible actualmente</td>
+                                <td><span class="status-box status-unavailable">—</span></td>
+                            </tr>
+                            <tr style="background: #fee2e2;">
+                                <td><code>message_id</code></td>
+                                <td colspan="2">Requiere API Mensajería</td>
+                                <td><span class="status-box status-critical">Req</span></td>
+                            </tr>
+                            <tr style="background: #fee2e2;">
+                                <td><code>thread_id</code></td>
+                                <td colspan="2">Requiere API Mensajería</td>
+                                <td><span class="status-box status-critical">Req</span></td>
+                            </tr>
+                            <tr style="background: #fee2e2;">
+                                <td><code>sender_type</code></td>
+                                <td colspan="2">Requiere API Mensajería</td>
+                                <td><span class="status-box status-critical">Req</span></td>
+                            </tr>
+                            <tr style="background: #fee2e2;">
+                                <td><code>message_content</code></td>
+                                <td colspan="2">Requiere API Mensajería</td>
+                                <td><span class="status-box status-critical">Req</span></td>
+                            </tr>
+                            <tr style="background: #fee2e2;">
+                                <td><code>received_at</code></td>
+                                <td colspan="2">Requiere API Mensajería</td>
+                                <td><span class="status-box status-critical">Req</span></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="question">
+                    <p class="question-text">¿Qué funciona hoy y qué requeriría desarrollo por parte de Amenitiz?</p>
+                </div>
+                
+                <div class="answer">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Funcionalidad</th>
+                                <th>Estado</th>
+                                <th>Desarrollo Amenitiz</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>Sincronización de reservas</td>
+                                <td><span class="status-box status-ready">✓ Funcionando</span></td>
+                                <td>Ninguno</td>
+                            </tr>
+                            <tr>
+                                <td>Autenticación de huéspedes</td>
+                                <td><span class="status-box status-ready">✓ Funcionando</span></td>
+                                <td>Ninguno</td>
+                            </tr>
+                            <tr>
+                                <td>Knowledge Base propiedades</td>
+                                <td><span class="status-box status-ready">✓ Funcionando</span></td>
+                                <td>Ninguno</td>
+                            </tr>
+                            <tr>
+                                <td>Lectura de mensajes</td>
+                                <td><span class="status-box status-needed">Requerido</span></td>
+                                <td>Endpoint GET mensajes</td>
+                            </tr>
+                            <tr>
+                                <td>Envío de respuestas</td>
+                                <td><span class="status-box status-needed">Requerido</span></td>
+                                <td>Endpoint POST respuesta</td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    <div class="mermaid-container">
+                        <p class="mermaid-title">Flujo de Sincronización de Calendario (Ya Implementado)</p>
+                        <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant Amenitiz as Amenitiz API
+    participant Scheduler as Alfred Scheduler
+    participant Parser as Calendar Parser
+    participant Store as Reservation Store
+    participant Auth as WhatsApp Auth
+    
+    Scheduler->>Amenitiz: GET /bookings/checkin
+    Amenitiz-->>Scheduler: Reservations JSON
+    Scheduler->>Parser: Parse reservations
+    Parser->>Store: Upsert reservations
+    Store->>Store: Attach integration metadata
+    Store-->>Auth: Reservation Store ready
+    Note over Auth: Guest authentication<br/>enabled via booking data
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SECCIÓN 2 -->
+            <div class="section">
+                <h2 class="section-title">
+                    <span class="section-number">2</span>
+                    Requisitos API / Técnicos
+                </h2>
+
+                <div class="question">
+                    <p class="question-text">¿Cómo se gestiona la autenticación (API token, OAuth, etc.)?</p>
+                </div>
+                
+                <div class="answer">
+                    <p>Actualmente utilizamos <strong>OAuth 2.0</strong> (ya testeado con Vendor de Okey). La comunicación Alfred ↔ Amenitiz funcionará en modalidad <strong>server-to-server</strong>:</p>
+                    <ul>
+                        <li>Amenitiz proporciona credenciales para obtener <code>access_token</code> asociado a cuenta específica</li>
+                        <li>Alfred utiliza el token como <code>Bearer token</code> para llamadas API autorizadas</li>
+                        <li>Scopes sugeridos: <code>inbox:read</code>, <code>inbox:write</code>, <code>bookings:read</code></li>
+                        <li>Ciclo de vida del token (refresh, rotación, revocación) a definir conjuntamente</li>
+                    </ul>
+                </div>
+
+                <div class="question">
+                    <p class="question-text">¿Son necesarios webhooks o sincronizaciones en tiempo real?</p>
+                </div>
+                
+                <div class="answer">
+                    <p>Hemos identificado <strong>4 webhooks</strong> necesarios, ordenados por prioridad:</p>
+                    
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Webhook</th>
+                                <th>Prioridad</th>
+                                <th>Justificación</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><code>message.received</code></td>
+                                <td><span class="status-box status-critical">CRÍTICO</span></td>
+                                <td>Respuesta con baja latencia. Fetching frecuente no es viable</td>
+                            </tr>
+                            <tr>
+                                <td><code>booking.created</code></td>
+                                <td><span class="status-box status-needed">ALTO</span></td>
+                                <td>Welcome message automático + sync calendario</td>
+                            </tr>
+                            <tr>
+                                <td><code>booking.modified</code></td>
+                                <td><span class="status-box status-ready">MEDIO</span></td>
+                                <td>Sync calendario solo cuando hay cambios</td>
+                            </tr>
+                            <tr>
+                                <td><code>booking.cancelled</code></td>
+                                <td><span class="status-box status-ready">MEDIO</span></td>
+                                <td>Sync calendario solo cuando hay cambios</td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    <div class="mermaid-container">
+                        <p class="mermaid-title">Flujo de Mensajes con Huéspedes (Requiere Endpoints Mensajería)</p>
+                        <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant Guest as Huésped (OTA)
+    participant Inbox as Amenitiz Inbox
+    participant Webhook as Webhook Handler
+    participant Alfred as Alfred AI
+    participant API as Amenitiz API
+    
+    Guest->>Inbox: Nuevo mensaje OTA
+    Inbox->>Webhook: message.received event
+    Note right of Webhook: Payload: thread_id,<br/>message_id, occurred_at
+    Webhook->>API: GET /inbox/messages?message_id=
+    API-->>Webhook: Message content
+    Webhook->>Alfred: Build AI input
+    Alfred->>Alfred: Generate response
+    Alfred->>API: POST /inbox/threads/{id}/reply
+    API-->>Inbox: Response delivered
+    Inbox-->>Guest: Alfred reply via OTA
+                        </div>
+                    </div>
+
+                    <p><strong>Endpoints de Mensajería Requeridos (propuesta):</strong></p>
+                    
+                    <div class="endpoint-box">
+                        <span class="endpoint-method">GET</span> /v1/inbox/messages?message_id={id}<br>
+                        <span style="color: #94a3b8;">→ Response: thread_id, message_id, sender_type, message_content, received_at</span>
+                    </div>
+                    
+                    <div class="endpoint-box">
+                        <span class="endpoint-method">POST</span> /v1/inbox/threads/{thread_id}/reply<br>
+                        <span style="color: #94a3b8;">→ Payload: reply_text, sender="host", idempotency_key</span>
+                    </div>
+
+                    <div class="highlight-box">
+                        <strong>Nota:</strong> No tenemos visibilidad sobre vuestras APIs de mensajería actuales. Los endpoints propuestos son ejemplos de lo que necesitaríamos. Estamos abiertos a adaptarnos a cualquier estructura que Amenitiz prefiera implementar.
+                    </div>
+                </div>
+            </div>
+
+            <!-- SECCIÓN 3 -->
+            <div class="section">
+                <h2 class="section-title">
+                    <span class="section-number">3</span>
+                    Experiencia y Setup del Cliente
+                </h2>
+
+                <div class="question">
+                    <p class="question-text">¿Los clientes Amenitiz deberían crear una cuenta separada Alfred o puede gestionarse todo vía Marketplace?</p>
+                </div>
+                
+                <div class="answer">
+                    <p>Proponemos un <strong>enfoque en dos fases</strong> para minimizar el esfuerzo de desarrollo inicial:</p>
+                    
+                    <div class="phase-box">
+                        <h4>Fase 1 - Integración Inicial (modelo Vikey)</h4>
+                        <p>Para el lanzamiento inicial, podríamos utilizar un método similar al de <strong>Vikey</strong>, minimizando el desarrollo necesario por parte de Amenitiz. El usuario crearía su cuenta Alfred de forma independiente y conectaría manualmente su propiedad Amenitiz mediante API key o credenciales.</p>
+                    </div>
+                    
+                    <div class="phase-box" style="border-color: var(--primary);">
+                        <h4>Fase 2 - Integración Marketplace Completa (solución definitiva)</h4>
+                        <p>Para la solución definitiva, imaginamos un <strong>flujo híbrido optimizado</strong> que minimiza fricción:</p>
+                        <ol>
+                            <li>Host hace clic en "Alfred" en el Amenitiz Marketplace</li>
+                            <li>Amenitiz abre Alfred con <strong>handoff</strong> (redirect o embedded) pasando:
+                                <code>hotel_id</code>, <code>hotel_name</code>, <code>email</code>, <code>user_name</code> (opcional)
+                            </li>
+                            <li>Alfred muestra signup/login con email <strong>pre-rellenado</strong></li>
+                            <li>Si email ya existe en Alfred → login automático + link</li>
+                            <li>Si no existe → signup rápido (1 clic)</li>
+                        </ol>
+                    </div>
+
+                    <div class="mermaid-container">
+                        <p class="mermaid-title">Flujo de Onboarding Marketplace (Fase 2)</p>
+                        <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant Host
+    participant AmenUI as Amenitiz UI
+    participant AmenBE as Amenitiz Backend
+    participant AlfFE as Alfred Frontend
+    participant AlfBE as Alfred Backend
+    
+    Host->>AmenUI: Click "Alfred" en Marketplace
+    AmenUI->>AmenBE: Preparar handoff marketplace
+    AmenBE->>AlfFE: Redirect con contexto
+    Note right of AlfFE: Payload: amenitiz_account_id,<br/>email, name, locale
+    AlfFE->>Host: Mostrar signup/login (email prefilled)
+    Host->>AlfFE: Confirmar continuar
+    
+    alt Cuenta Alfred existe
+        AlfFE->>AlfBE: Login usuario
+    else Nueva cuenta Alfred
+        AlfFE->>AlfBE: Crear cuenta
+    end
+    
+    AlfBE->>AlfBE: Vincular amenitiz_account_id
+    AlfBE->>AmenBE: Fetch propiedades
+    AmenBE-->>AlfBE: Lista propiedades
+    AlfBE->>AlfFE: Mostrar lista propiedades
+    Host->>AlfFE: Seleccionar propiedades a activar
+    AlfFE->>AlfBE: Submit selección
+    AlfBE->>AlfBE: Crear mappings de propiedades
+    AlfBE->>AlfFE: Integración lista
+    AlfFE->>Host: Pantalla de confirmación
+                        </div>
+                    </div>
+
+                    <p><strong>Mapeo de Propiedades:</strong> Para el correcto funcionamiento de la Knowledge Base, mapeamos los identificadores de unidades receptivas: <code>rooms[].room_id</code>, <code>rooms[].individual_room_id</code>, <code>rooms[].individual_room_name</code>, <code>rooms[].individual_room_number</code></p>
+                </div>
+            </div>
+
+            <!-- SECCIÓN 4 -->
+            <div class="section">
+                <h2 class="section-title">
+                    <span class="section-number">4</span>
+                    Integración Marketplace
+                </h2>
+
+                <div class="question">
+                    <p class="question-text">¿Qué esperaríais que desarrollase Amenitiz vs qué proporciona Alfred?</p>
+                </div>
+                
+                <div class="answer">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Componente</th>
+                                <th>Responsable</th>
+                                <th>Estado</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>Sincronización reservas</td>
+                                <td><span class="inline-badge badge-blue">Alfred</span></td>
+                                <td><span class="status-box status-ready">✓ Completado</span></td>
+                            </tr>
+                            <tr>
+                                <td>Autenticación huéspedes</td>
+                                <td><span class="inline-badge badge-blue">Alfred</span></td>
+                                <td><span class="status-box status-ready">✓ Completado</span></td>
+                            </tr>
+                            <tr>
+                                <td>Motor IA respuestas</td>
+                                <td><span class="inline-badge badge-blue">Alfred</span></td>
+                                <td><span class="status-box status-ready">✓ Completado</span></td>
+                            </tr>
+                            <tr>
+                                <td>Knowledge Base RAG</td>
+                                <td><span class="inline-badge badge-blue">Alfred</span></td>
+                                <td><span class="status-box status-ready">✓ Completado</span></td>
+                            </tr>
+                            <tr>
+                                <td>UI/UX onboarding</td>
+                                <td><span class="inline-badge badge-blue">Alfred</span></td>
+                                <td><span class="status-box status-ready">✓ Completado</span></td>
+                            </tr>
+                            <tr>
+                                <td>Endpoint lectura mensajes</td>
+                                <td><span class="inline-badge badge-green">Amenitiz</span></td>
+                                <td><span class="status-box status-needed">Requerido</span></td>
+                            </tr>
+                            <tr>
+                                <td>Endpoint envío respuestas</td>
+                                <td><span class="inline-badge badge-green">Amenitiz</span></td>
+                                <td><span class="status-box status-needed">Requerido</span></td>
+                            </tr>
+                            <tr>
+                                <td>Webhooks eventos</td>
+                                <td><span class="inline-badge badge-green">Amenitiz</span></td>
+                                <td><span class="status-box status-needed">Requerido</span></td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    <div class="highlight-box success">
+                        <strong>Punto clave:</strong> Los mensajes generados por Alfred aparecerán directamente en vuestra Inbox, exactamente como ya ocurre con todos los mensajes OTA. <strong>No se requiere desarrollo de UI por parte de Amenitiz.</strong>
+                    </div>
+                </div>
+
+                <div class="question">
+                    <p class="question-text">Estimación de tiempos de setup, asumiendo acceso API disponible</p>
+                </div>
+                
+                <div class="answer">
+                    <p><strong>Estimamos estar listos para finales de Marzo 2026.</strong></p>
+                </div>
+            </div>
+
+            <!-- SECCIÓN 5 -->
+            <div class="section">
+                <h2 class="section-title">
+                    <span class="section-number">5</span>
+                    Escalabilidad y Soporte
+                </h2>
+
+                <div class="question">
+                    <p class="question-text">¿Cómo escala Alfred en múltiples propiedades / cuentas?</p>
+                </div>
+                
+                <div class="answer">
+                    <p>La estructura de datos en Alfred es:</p>
+                    
+                    <div class="endpoint-box">
+                        User Account (= hotel_id Amenitiz)<br>
+                        ├── Property 1 (= rooms[].room_id) → Subscription 1<br>
+                        ├── Property 2 (= rooms[].room_id) → Subscription 2<br>
+                        ├── Property 3 (= rooms[].room_id) → Subscription 3<br>
+                        └── ... (sin límite)
+                    </div>
+                    
+                    <p>El usuario puede <strong>elegir libremente</strong> qué unidades receptivas de Amenitiz conectar a Alfred. Cada unidad tiene un ciclo de facturación separado para máxima flexibilidad.</p>
+                </div>
+
+                <div class="question">
+                    <p class="question-text">¿Hay limitaciones conocidas a considerar?</p>
+                </div>
+                
+                <div class="answer">
+                    <p>No identificamos limitaciones técnicas significativas. Alfred está diseñado para escalar horizontalmente.</p>
+                </div>
+
+                <div class="question">
+                    <p class="question-text">¿Costes eventuales?</p>
+                </div>
+                
+                <div class="answer">
+                    <p>Los costes son <strong>100% a cargo del host</strong> que decide integrar Alfred, según los planes que active.</p>
+                    
+                    <div class="highlight-box success">
+                        <strong>Propuesta comercial:</strong> Nuestra intención es ofrecer una <strong>tarifa muy descontada para clientes Amenitiz</strong>. Buscamos un resultado win-win: adquisición de clientes para Alfred, mejora de servicios integrados + diferenciación competitiva para Amenitiz, y fuerte descuento exclusivo para los hosts.
+                    </div>
+                    
+                    <p><strong>Pregunta para vosotros:</strong> ¿Amenitiz prevé take rate para el marketplace? En caso afirmativo, ¿qué porcentaje? Esta información es relevante para definir correctamente nuestro pricing.</p>
+                </div>
+            </div>
+
+        </div>
+
+        <div class="footer">
+            <p>Espero haber respondido exhaustivamente a tus preguntas y haberte proporcionado toda la información solicitada. Quedo a disposición para cualquier aclaración.</p>
+            <p class="signature"><strong>Giuliano</strong></p>
+            <p class="contact">giuliano@okeyhomes.com / info@alfredco.host</p>
+        </div>
+    </div>
+
+    <script>
+        mermaid.initialize({ 
+            startOnLoad: true,
+            theme: 'base',
+            themeVariables: {
+                primaryColor: '#dbeafe',
+                primaryTextColor: '#1e40af',
+                primaryBorderColor: '#2563eb',
+                lineColor: '#64748b',
+                secondaryColor: '#f3f4f6',
+                tertiaryColor: '#ffffff'
+            },
+            sequence: {
+                diagramMarginX: 10,
+                diagramMarginY: 10,
+                actorMargin: 50,
+                width: 150,
+                height: 50,
+                boxMargin: 10,
+                boxTextMargin: 5,
+                noteMargin: 10,
+                messageMargin: 35
+            }
+        });
+    </script>
+</body>
+</html>
