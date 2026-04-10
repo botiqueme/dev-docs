@@ -43,7 +43,7 @@ Migrare i dati esistenti assegnando `source = "Personalizzato"`.
 
 ## 2. `POST /save_ics` — modifica logica
 
-> **IMPORTANTE: Il source negli eventi di get_calendar_view deve essere identico al source salvato via save_ics.**       
+> **IMPORTANTE: Il source negli eventi di get_calendar_view deve essere identico (case sensitive) al source salvato via save_ics.**       
 
 ### Request (invariata)
 ```json
