@@ -461,7 +461,40 @@ So, in short:
 | --- | --- | --- |
 | `GET` | `/get_properties?current_page=1` | mapping dropdown, calendar property dropdown |
 
-## 8. Recommended backend checklist
+## 8. Button and sensitive-action matrix
+
+This section is the most operational one for the backend developer: button by button, it tells what the frontend does and what the backend must support.
+
+| Screen | Sensitive element | Current frontend behavior | Endpoint involved | What backend must do |
+| --- | --- | --- | --- | --- |
+| Bootstrap | Page open `/dashboard/integrations` | Immediately loads current connections | `GET /integrations/connections` | Return `[]` for first-time users, or the current active connection list |
+| Picker | PMS card click | Saves selected PMS locally and moves to token screen | none | Nothing backend-side |
+| Picker | "Richiedi un'integrazione" link | Currently placeholder only (`href="#"`) | none | Nothing yet; no backend integration currently tied to this control |
+| Token screen | "Indietro" | Local navigation only | none | Nothing backend-side |
+| Token screen | "Verifica" | Calls token validation | `POST /integrations/:pmsId/validate` | Verify token and return `{ valid: boolean }` |
+| Token screen | "Connetti {PMS}" | Calls property discovery after successful validation | `POST /integrations/:pmsId/discover` | Use provided token, fetch PMS properties, optionally auto-match them to Alfred properties |
+| Mapping screen | Property select row | Updates mapping only in frontend state | none | Nothing immediately; final state is sent on save |
+| Mapping screen | New property name input | Updates mapping only in frontend state | none | Nothing immediately; final state is sent on save |
+| Mapping screen | "Indietro" | Local navigation back to token screen | none | Nothing backend-side |
+| Mapping screen | "Salva mappatura" | Sends the complete mapping object | `POST /integrations/:pmsId/connect` | Persist connection, persist/update token if present, save mapping, create Alfred properties for `kind: "create"` rows, optionally trigger first sync |
+| Success screen | "Torna alle integrazioni" | Local navigation only | none | Nothing backend-side |
+| Success screen | "Apri Calendario" | Navigates to `/dashboard/calendar` | none | Data imported by the integration should already be readable by existing calendar/property APIs |
+| Returning screen | "Gestisci" menu button | Opens local dropdown menu | none | Nothing backend-side |
+| Returning screen | "Sincronizza ora" | Calls sync and shows local loading state | `POST /integrations/:pmsId/sync` | Run or trigger sync; current FE assumes the sync is effectively done when the request resolves |
+| Returning screen | "Ri-autenticazione" open | Opens modal locally | none | Nothing backend-side |
+| Reauth modal | "Aggiorna token" | First validates, then updates token | `POST /integrations/:pmsId/validate` then `PATCH /integrations/:pmsId/token` | Validate new token, then replace stored token without touching mappings/history |
+| Returning screen | "Modifica mappatura proprietà" | Reopens discovery/mapping flow using stored connection | `POST /integrations/:pmsId/discover` then `POST /integrations/:pmsId/connect` | Support remap flow even when FE sends `token: ""`, using stored token server-side |
+| Returning screen | "Disconnetti" menu item | Opens local switch warning modal | none directly | Nothing yet at menu-open time |
+| Switch warning modal | "Disconnetti e cambia" | Currently only returns user to picker; does not call backend delete yet | intended `DELETE /integrations/:pmsId`, but not actually called today | Before release, either implement FE delete call or make next `connect` replace the previous PMS atomically |
+| Returning screen | Status cards / last sync info | Purely presentational | driven by `GET /integrations/connections` | Keep `status`, `lastSync`, `mapped`, `total` coherent so the cards render correctly |
+
+In practical terms:
+
+- Every sensitive action that actually hits the backend is already listed above.
+- Controls not associated with an endpoint are local-only UI controls.
+- The only intentionally incomplete sensitive flow today is disconnect/switch PMS.
+
+## 9. Recommended backend checklist
 
 - Enforce or support only one active PMS connection per Alfred account.
 - Return a direct array from `GET /integrations/connections`.
@@ -472,7 +505,7 @@ So, in short:
 - Decide clearly how switching PMS works: either real `DELETE` before reconnect, or automatic replacement on the next `connect`.
 - Decide whether `sync` is synchronous or async job based, because the current UI assumes "done when request resolves".
 
-## 9. Open points worth aligning before backend work starts
+## 10. Open points worth aligning before backend work starts
 
 - Should switching PMS delete old imported bookings immediately, or archive them first?
 - Should `connect` trigger a full initial sync immediately, or only save the mapping?
@@ -480,7 +513,7 @@ So, in short:
 - If `discover` returns zero properties, do we want the backend to allow that, or should the frontend get a dedicated empty-state response later?
 - Do we want to expose all PMS ids already present in the picker, or temporarily limit the supported set?
 
-## 10. Current frontend caveats to keep in mind
+## 11. Current frontend caveats to keep in mind
 
 - After the first successful connection, the success screen does not refresh `GET /integrations/connections`. If the user clicks "Torna alle integrazioni" without reloading the page, they can land back on the picker instead of the returning screen.
 - After `sync` and `reauth`, the frontend does not refetch connection status. It only updates local UI state.
